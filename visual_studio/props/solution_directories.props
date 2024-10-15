@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ImportGroup Label="PropertySheets" />
+  <PropertyGroup Label="UserMacros">
+    <FrameworkRoot>$(MSBuildThisFileDirectory)..\..\auto_vk_toolkit\</FrameworkRoot>
+    <ExternalRoot>$(MSBuildThisFileDirectory)..\..\external\</ExternalRoot>
+    <ExamplesRoot>$(MSBuildThisFileDirectory)..\..\examples\</ExamplesRoot>
+    <AssetsRoot>$(MSBuildThisFileDirectory)..\..\assets\</AssetsRoot>
+    <ToolsRoot>$(MSBuildThisFileDirectory)..\tools\</ToolsRoot>
+    <ToolsBin>$(MSBuildThisFileDirectory)..\tools\executables\</ToolsBin>
+    <PropsDirectory>$(MSBuildThisFileDirectory)</PropsDirectory>
+    <AutoVkRoot>$(MSBuildThisFileDirectory)..\..\auto_vk\</AutoVkRoot>
+  </PropertyGroup>
+  <ItemGroup>
+    <BuildMacro Include="FrameworkRoot">
+      <Value>$(FrameworkRoot)</Value>
+    </BuildMacro>
+    <BuildMacro Include="ExternalRoot">
+      <Value>$(ExternalRoot)</Value>
+    </BuildMacro>
+    <BuildMacro Include="ExamplesRoot">
+      <Value>$(ExamplesRoot)</Value>
+    </BuildMacro>
+    <BuildMacro Include="AssetsRoot">
+      <Value>$(AssetsRoot)</Value>
+    </BuildMacro>
+    <BuildMacro Include="ToolsRoot">
+      <Value>$(ToolsRoot)</Value>
+    </BuildMacro>
+    <BuildMacro Include="ToolsBin">
+      <Value>$(ToolsBin)</Value>
+    </BuildMacro>
+    <BuildMacro Include="PropsDirectory">
+      <Value>$(PropsDirectory)</Value>
+    </BuildMacro>
+    <BuildMacro Include="AutoVkRoot">
+      <Value>$(AutoVkRoot)</Value>
+    </BuildMacro>
+  </ItemGroup>
+</Project>

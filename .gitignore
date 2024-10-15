@@ -1,0 +1,9 @@
+# Build results of the framework-library
+auto_vk_toolkit/lib/
+
+# CMake output directory and Visual Studio cache/options directory if opened as CMake projec
+out/
+.vs/
+
+# CLion cache
+.idea/
