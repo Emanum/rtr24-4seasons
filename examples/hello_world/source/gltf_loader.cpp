@@ -30,8 +30,6 @@ namespace fs = std::experimental::filesystem;
 #include <cassert>
 #include <cstdlib>
 
-
-
 using namespace Microsoft::glTF;
 
 namespace
@@ -200,7 +198,19 @@ namespace
         }
     }
 
-    void PrintInfo(const fs::path& path)
+    struct GLFTReturn
+    {
+        Document document;
+        std::unique_ptr<GLTFResourceReader> resourceReader;
+    };
+
+    /**
+     * @brief Load a glTF file. Returns the deserialized Document object.
+     * 
+     * @param path The path to the glTF file
+     * @return GLFTReturn The deserialized Document object and the GLTFResourceReader object
+     */
+    GLFTReturn LoadGLFT(const fs::path& path)
     {
         // Pass the absolute path, without the filename, to the stream reader
         auto streamReader = std::make_unique<StreamReader>(path.parent_path());
@@ -267,10 +277,17 @@ namespace
         }
 
         std::cout << "### glTF Info - " << pathFile << " ###\n\n";
-
-        PrintDocumentInfo(document);
-        PrintResourceInfo(document, *resourceReader);
+        return {document, std::move(resourceReader)};
     }
+
+    void PrintInfo(const fs::path& path)
+    {
+        auto glft_return = LoadGLFT(path);
+
+        PrintDocumentInfo(glft_return.document);
+        PrintResourceInfo(glft_return.document, *glft_return.resourceReader);
+    }
+        
 }
 
 // #if defined _WIN32 && defined _UNICODE
