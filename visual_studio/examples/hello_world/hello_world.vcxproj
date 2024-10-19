@@ -173,6 +173,7 @@
       <ForcedIncludeFiles>cg_stdafx.hpp</ForcedIncludeFiles>
       <TreatSpecificWarningsAsErrors>4715</TreatSpecificWarningsAsErrors>
       <PrecompiledHeaderFile>cg_stdafx.hpp</PrecompiledHeaderFile>
+      <AdditionalOptions>/utf-8 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -186,4 +187,7 @@
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>
+  <PropertyGroup Label="Vcpkg">
+    <VcpkgEnableManifest>true</VcpkgEnableManifest>
+  </PropertyGroup>
 </Project>

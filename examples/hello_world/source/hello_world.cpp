@@ -6,12 +6,14 @@
 #include "imgui_manager.hpp"
 #include "invokee.hpp"
 #include "sequential_invoker.hpp"
+#include <fmt/core.h>
 
 class draw_a_triangle_app : public avk::invokee
 {
 public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	draw_a_triangle_app(avk::queue& aQueue) : mQueue{ &aQueue }
 	{}
+	
 
 	void initialize() override
 	{
@@ -136,6 +138,7 @@ private: // v== Member variables ==v
 
 int main() // <== Starting point ==
 {
+	fmt::print("Hello World!\n");
 	int result = EXIT_FAILURE;
 	try {
 		// Create a window and open it
