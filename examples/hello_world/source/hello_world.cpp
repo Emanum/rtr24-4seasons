@@ -6,6 +6,7 @@
 #include "imgui_manager.hpp"
 #include "invokee.hpp"
 #include "sequential_invoker.hpp"
+#include "gltf_loader.cpp"
 #include <fmt/core.h>
 
 class draw_a_triangle_app : public avk::invokee
@@ -139,6 +140,11 @@ private: // v== Member variables ==v
 int main() // <== Starting point ==
 {
 	fmt::print("Hello World!\n");
+	// Call the PrintInfo function with the path to the glTF file
+	std::filesystem::path gltfFilePath = "F:\\dev\\studium\\realtimegraphics\\assets\\testScene.glb";
+	PrintInfo(gltfFilePath);
+
+	
 	int result = EXIT_FAILURE;
 	try {
 		// Create a window and open it
