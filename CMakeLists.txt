@@ -38,40 +38,11 @@ option(avk_toolkit_ReleaseDLLsOnly "Use release DLLs for all dependencies of exa
 option(avk_toolkit_CreateDependencySymlinks "Create symbolic links instead of copying dependencies of examples, i.e. DLLs (Windows only) & assets." ON)
 
 option(avk_toolkit_BuildExamples "Build all examples for Auto-Vk-Toolkit." OFF)
-option(avk_toolkit_BuildHelloWorld "Build example: hello_world." OFF)
-option(avk_toolkit_BuildFramebuffer "Build example: framebuffer." OFF)
-option(avk_toolkit_BuildDynamicRendering "Build example: dynamic_rendering." OFF)
-option(avk_toolkit_BuildComputeImageProcessing "Build example: compute_image_processing." OFF)
-option(avk_toolkit_BuildMultiInvokeeRendering "Build example: multi_invokee_rendering." OFF)
-option(avk_toolkit_BuildModelLoader "Build example: model_loader." OFF)
-option(avk_toolkit_BuildStaticMeshlets "Build example: static_meshlets." OFF)
-option(avk_toolkit_BuildSkinnedMeshlets "Build example: skinned_meshlets." OFF)
-option(avk_toolkit_BuildOrcaLoader "Build example: orca_loader." OFF)
-option(avk_toolkit_BuildRayQueryInRayTracingShaders "Build example: ray_query_in_ray_tracing_shaders." OFF)
-option(avk_toolkit_BuildRayTracingWithShadowsAndAO "Build example: ray_tracing_with_shadows_and_ao." OFF)
-option(avk_toolkit_BuildRayTracingCustomIntersection "Build example: ray_tracing_custom_intersection." OFF)
-option(avk_toolkit_BuildTextureCubemap "Build example: texture_cubemap." OFF)
-option(avk_toolkit_BuildVertexBuffers "Build example: vertex_buffers." OFF)
-option(avk_toolkit_BuildMultipleQueues "Build example: multiple_queues." OFF)
-option(avk_toolkit_BuildPresentFromCompute "Build example: present_from_compute." OFF)
+option(avk_toolkit_BuildFourSeasons "Build example: Four Seasons." OFF)
+
 
 if (avk_toolkit_BuildExamples)
     set(avk_toolkit_BuildHelloWorld ON)
-    set(avk_toolkit_BuildFramebuffer ON)
-    set(avk_toolkit_BuildDynamicRendering ON)
-    set(avk_toolkit_BuildComputeImageProcessing ON)
-    set(avk_toolkit_BuildMultiInvokeeRendering ON)
-    set(avk_toolkit_BuildModelLoader ON)
-    set(avk_toolkit_BuildStaticMeshlets ON)
-    set(avk_toolkit_BuildSkinnedMeshlets ON)
-    set(avk_toolkit_BuildOrcaLoader ON)
-    set(avk_toolkit_BuildRayQueryInRayTracingShaders ON)
-    set(avk_toolkit_BuildRayTracingWithShadowsAndAO ON)
-    set(avk_toolkit_BuildRayTracingCustomIntersection ON)
-    set(avk_toolkit_BuildTextureCubemap ON)
-    set(avk_toolkit_BuildVertexBuffers ON)
-    set(avk_toolkit_BuildMultipleQueues ON)
-    set(avk_toolkit_BuildPresentFromCompute ON)
 endif()
 
 # ---------------------- Auto-Vk-Toolkit Framework ------------------------
@@ -218,82 +189,8 @@ target_precompile_headers(${PROJECT_NAME} ${avk_toolkit_IncludeScope} [["auto_vk
 
 include(cmake/post_build_helper/add_post_build_commands.cmake)
 
-## hello_world
-if (avk_toolkit_BuildHelloWorld)
-    add_subdirectory(examples/hello_world)
+## fourSeasons
+if (avk_toolkit_BuildFourSeasons)
+    add_subdirectory(examples/fourSeasons)
 endif()
 
-## framebuffer
-if (avk_toolkit_BuildFramebuffer)
-    add_subdirectory(examples/framebuffer)
-endif()
-
-## dynamic_rendering
-if (avk_toolkit_BuildDynamicRendering)
-    add_subdirectory(examples/dynamic_rendering)
-endif()
-
-## compute_image_processing
-if (avk_toolkit_BuildComputeImageProcessing)
-    add_subdirectory(examples/compute_image_processing)
-endif()
-
-## multi_invokee_rendering
-if (avk_toolkit_BuildMultiInvokeeRendering)
-    add_subdirectory(examples/multi_invokee_rendering)
-endif()
-
-## model_loader
-if (avk_toolkit_BuildModelLoader)
-    add_subdirectory(examples/model_loader)
-endif()
-
-## static_meshlets
-if (avk_toolkit_BuildStaticMeshlets)
-    add_subdirectory(examples/static_meshlets)
-endif()
-
-## skinned_meshlets
-if (avk_toolkit_BuildSkinnedMeshlets)
-    add_subdirectory(examples/skinned_meshlets)
-endif()
-
-## orca_loader
-if (avk_toolkit_BuildOrcaLoader)
-    add_subdirectory(examples/orca_loader)
-endif()
-
-## ray_query_in_ray_tracing_shaders
-if (avk_toolkit_BuildRayQueryInRayTracingShaders)
-    add_subdirectory(examples/ray_query_in_ray_tracing_shaders)
-endif()
-
-## ray_tracing_with_shadows_and_ao
-if (avk_toolkit_BuildRayTracingWithShadowsAndAO)
-    add_subdirectory(examples/ray_tracing_with_shadows_and_ao)
-endif()
-
-## ray_tracing_custom_intersection
-if (avk_toolkit_BuildRayTracingCustomIntersection)
-    add_subdirectory(examples/ray_tracing_custom_intersection)
-endif()
-
-## texture_cubemap
-if (avk_toolkit_BuildTextureCubemap)
-    add_subdirectory(examples/texture_cubemap)
-endif()
-
-## vertex_buffers
-if (avk_toolkit_BuildVertexBuffers)
-    add_subdirectory(examples/vertex_buffers)
-endif()
-
-## multiple_queues
-if (avk_toolkit_BuildMultipleQueues)
-    add_subdirectory(examples/multiple_queues)
-endif()
-
-## present_from_compute
-if (avk_toolkit_BuildPresentFromCompute)
-    add_subdirectory(examples/present_from_compute)
-endif()

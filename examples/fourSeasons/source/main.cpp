@@ -20,7 +20,7 @@ int main() // <== Starting point ==
 	int result = EXIT_FAILURE;
 	try {
 		// Create a window and open it
-		auto mainWnd = avk::context().create_window("Hello World");
+		auto mainWnd = avk::context().create_window("FourSeasons");
 		mainWnd->set_resolution({ 640, 480 });
 		mainWnd->enable_resizing(true);
 		mainWnd->set_presentaton_mode(avk::presentation_mode::mailbox);

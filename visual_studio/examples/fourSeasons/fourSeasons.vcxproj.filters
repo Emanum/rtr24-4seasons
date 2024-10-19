@@ -1,7 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\..\..\examples\hello_world\source\hello_world.cpp" />
+    <ClCompile Include="..\..\..\examples\fourSeasons\source\main.cpp" />
+    <ClCompile Include="..\..\..\examples\fourSeasons\source\draw_a_triangle_app.cpp" />
+    <ClCompile Include="..\..\..\examples\fourSeasons\source\gltf_loader.cpp" />
     <ClCompile Include="cg_stdafx.cpp">
       <Filter>precompiled_headers</Filter>
     </ClCompile>
@@ -19,10 +21,10 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\examples\hello_world\shaders\a_triangle.frag">
+    <None Include="..\..\..\examples\fourSeasons\shaders\a_triangle.frag">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\..\..\examples\hello_world\shaders\a_triangle.vert">
+    <None Include="..\..\..\examples\fourSeasons\shaders\a_triangle.vert">
       <Filter>shaders</Filter>
     </None>
   </ItemGroup>

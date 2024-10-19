@@ -15,9 +15,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\examples\hello_world\source\gltf_loader.cpp" />
-    <ClCompile Include="..\..\..\examples\hello_world\source\hello_world.cpp" />
-    <ClCompile Include="..\..\..\examples\hello_world\source\draw_a_triangle_app.cpp" />
+    <ClCompile Include="..\..\..\examples\fourSeasons\source\gltf_loader.cpp" />
+    <ClCompile Include="..\..\..\examples\fourSeasons\source\main.cpp" />
+    <ClCompile Include="..\..\..\examples\fourSeasons\source\draw_a_triangle_app.cpp" />
     <ClCompile Include="cg_stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Publish_Vulkan|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Create</PrecompiledHeader>
@@ -25,8 +25,8 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\..\..\examples\hello_world\shaders\a_triangle.frag" />
-    <None Include="..\..\..\examples\hello_world\shaders\a_triangle.vert" />
+    <None Include="..\..\..\examples\fourSeasons\shaders\a_triangle.frag" />
+    <None Include="..\..\..\examples\fourSeasons\shaders\a_triangle.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cg_stdafx.hpp" />
@@ -41,9 +41,9 @@
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{AAAC1485-846C-4F30-8824-125E8584D038}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
-    <RootNamespace>helloworld</RootNamespace>
+    <RootNamespace>fourSeasons</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
-    <ProjectName>hello_world</ProjectName>
+    <ProjectName>fourSeasons</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'" Label="Configuration">

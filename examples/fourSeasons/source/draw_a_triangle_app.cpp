@@ -39,7 +39,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		if(nullptr != imguiManager) {
 			imguiManager->add_callback([this](){	
 				bool isEnabled = this->is_enabled();
-		        ImGui::Begin("Hello, world!");
+		        ImGui::Begin("4 Seasons!");
 				ImGui::SetWindowPos(ImVec2(1.0f, 1.0f), ImGuiCond_FirstUseEver);
 				ImGui::Text("%.3f ms/frame", 1000.0f / ImGui::GetIO().Framerate);
 				ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
