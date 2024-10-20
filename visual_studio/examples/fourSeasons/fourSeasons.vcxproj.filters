@@ -2,8 +2,7 @@
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
     <ClCompile Include="..\..\..\examples\fourSeasons\source\main.cpp" />
-    <ClCompile Include="..\..\..\examples\fourSeasons\source\draw_a_triangle_app.cpp" />
-    <ClCompile Include="..\..\..\examples\fourSeasons\source\gltf_loader.cpp" />
+    <ClCompile Include="..\..\..\examples\fourSeasons\source\model_loader.cpp" />
     <ClCompile Include="cg_stdafx.cpp">
       <Filter>precompiled_headers</Filter>
     </ClCompile>
@@ -27,6 +26,15 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\a_triangle.vert">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\diffuse_shading_fixed_lightsource.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\transform_and_pass_pos_nrm_uv.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\assets\4seasons.obj">
+      <Filter>assets</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cg_stdafx.hpp">
@@ -35,5 +43,7 @@
     <ClInclude Include="cg_targetver.hpp">
       <Filter>precompiled_headers</Filter>
     </ClInclude>
+    <ClInclude Include="..\..\..\examples\model_loader\source\camera_path.hpp" />
+    <ClInclude Include="..\..\..\examples\model_loader\source\ui_helper.hpp" />
   </ItemGroup>
 </Project>

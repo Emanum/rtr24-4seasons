@@ -18,6 +18,8 @@ Windows Only
 
 ### Install VCPKG
 
+Obsolte, for now. If we want additional libraries for sound etc we can use this package manager.
+
 Details: https://learn.microsoft.com/de-de/vcpkg/get_started/get-started-msbuild?pivots=shell-powershell
 
 TLDR:
@@ -39,7 +41,3 @@ $env:PATH = "$env:VCPKG_ROOT;$env:PATH"
 ```
  
 Or permanently via Windows settings.
-
-### Install Dependencies
-
-```powershell

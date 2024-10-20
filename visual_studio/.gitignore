@@ -1,5 +1,6 @@
 # vcpkg_installed
 vcpkg_installed/
+assets/
 
 # User-specific files
 *.suo

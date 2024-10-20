@@ -15,9 +15,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\..\examples\fourSeasons\source\gltf_loader.cpp" />
-    <ClCompile Include="..\..\..\examples\fourSeasons\source\main.cpp" />
-    <ClCompile Include="..\..\..\examples\fourSeasons\source\draw_a_triangle_app.cpp" />
+    <ClCompile Include="..\..\..\examples\fourSeasons\source\model_loader.cpp" />
     <ClCompile Include="cg_stdafx.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Publish_Vulkan|x64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug_Vulkan|x64'">Create</PrecompiledHeader>
@@ -29,6 +27,8 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\a_triangle.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\examples\fourSeasons\source\camera_path.hpp" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\source\ui_helper.hpp" />
     <ClInclude Include="cg_stdafx.hpp" />
     <ClInclude Include="cg_targetver.hpp" />
   </ItemGroup>
@@ -36,6 +36,13 @@
     <ProjectReference Include="..\..\auto_vk_toolkit\auto_vk_toolkit.vcxproj">
       <Project>{602f842f-50c1-466d-8696-1707937d8ab9}</Project>
     </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\diffuse_shading_fixed_lightsource.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\transform_and_pass_pos_nrm_uv.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="..\..\..\examples\fourSeasons\resources\" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
