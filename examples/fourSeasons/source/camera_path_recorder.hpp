@@ -22,7 +22,13 @@ public:
 			auto t = (avk::time().time_since_start() - mStartTime);
 			if (t - mLastRecordedTime >= mRecordingDensity) {
 				mRecordingPathPositions->push_back(mCam->translation());
-				mRecordingPathRotations->push_back(mCam->rotation());
+				// mRecordingPathRotations->push_back(mCam->rotation());
+
+				//use the translation and rotation to get the direction vector (x,y,z)
+				auto directionVector = glm::normalize(front(*mCam));
+				mRecordingPathRotations->push_back(directionVector);
+				
+				
 				mLastRecordedTime = t;
 			}
 		}
@@ -31,7 +37,7 @@ public:
 	void start_recording()
 	{
 		mRecordingPathPositions = std::make_unique<std::vector<glm::vec3>>();
-		mRecordingPathRotations = std::make_unique<std::vector<glm::quat>>();
+		mRecordingPathRotations = std::make_unique<std::vector<glm::vec3>>();
 		mStartTime = avk::time().time_since_start();
 		mRecording = true;
 		mLastRecordedTime = 0.0f;
@@ -43,7 +49,7 @@ public:
 		save_to_disk("assets\\camera_path.txt");
 	}
 
-	void _save_to_disk(std::string path, std::unique_ptr<std::vector<glm::vec3>> mRecordingPathPositions, std::unique_ptr<std::vector<glm::quat>> mRecordingPathRotations)
+	void _save_to_disk(std::string path, std::unique_ptr<std::vector<glm::vec3>> mRecordingPathPositions, std::unique_ptr<std::vector<glm::vec3>> mRecordingPathRotations)
 		{
 		try
 		{
@@ -55,7 +61,7 @@ public:
 				
 				for (size_t i = 0; i < mRecordingPathPositions->size(); ++i) {
 					file << mRecordingPathPositions->at(i).x << " " << mRecordingPathPositions->at(i).y << " " << mRecordingPathPositions->at(i).z << " ";
-					file << mRecordingPathRotations->at(i).x << " " << mRecordingPathRotations->at(i).y << " " << mRecordingPathRotations->at(i).z << " " << mRecordingPathRotations->at(i).w << std::endl;
+					file << mRecordingPathRotations->at(i).x << " " << mRecordingPathRotations->at(i).y << " " << mRecordingPathRotations->at(i).z << std::endl;
 				}
 				file.close();
 			}
@@ -76,12 +82,12 @@ public:
 	}
 
 private:
-	avk::quake_camera* mCam;
+	avk::quake_camera*  mCam;
 	float mStartTime;
 	float mLastRecordedTime;
 	float mRecordingDensity;
 	bool mRecording = false;
 	std::unique_ptr<std::vector<glm::vec3>> mRecordingPathPositions;
-	std::unique_ptr<std::vector<glm::quat>> mRecordingPathRotations;
+	std::unique_ptr<std::vector<glm::vec3>> mRecordingPathRotations;
 
 };
