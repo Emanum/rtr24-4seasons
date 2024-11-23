@@ -10,6 +10,7 @@
 #include "sequential_invoker.hpp"
 #include "ui_helper.hpp"
 #include "vk_convenience_functions.hpp"
+#include "camera_path_recorder.hpp"
 
 class model_loader_app : public avk::invokee
 {
@@ -386,6 +387,22 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			mQuakeCam.look_at(glm::vec3{0.0f, 0.0f, 0.0f});
 		}
 
+		// Automatic camera path recording:
+		if (avk::input().key_pressed(avk::key_code::r)) {
+			if (mCameraPathRecorder.has_value()) {
+				mCameraPathRecorder->stop_recording();
+				mCameraPathRecorder.reset();
+			}
+			else {
+				mCameraPathRecorder.emplace(mQuakeCam);
+				mCameraPathRecorder->start_recording();
+			}
+		}
+		if(mCameraPathRecorder.has_value()) {
+			mCameraPathRecorder->update();
+		}
+		
+
 		// Automatic camera path:
 		if (avk::input().key_pressed(avk::key_code::c)) {
 			if (avk::input().key_down(avk::key_code::left_shift)) { // => disable
@@ -422,6 +439,7 @@ private: // v== Member variables ==v
 	avk::orbit_camera mOrbitCam;
 	avk::quake_camera mQuakeCam;
 	std::optional<camera_path> mCameraPath;
+	std::optional<camera_path_recorder> mCameraPathRecorder;
 
 	// imgui elements
 	std::optional<combo_box_container> mPresentationModeCombo;
@@ -438,7 +456,7 @@ int main() // <== Starting point ==
 	int result = EXIT_FAILURE;
 	try {
 		// Create a window and open it
-		auto mainWnd = avk::context().create_window("Model Loader");
+		auto mainWnd = avk::context().create_window("4 Seasons");
 
 		mainWnd->set_resolution({ 1000, 480 });
 		mainWnd->enable_resizing(true);
