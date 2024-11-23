@@ -5,46 +5,69 @@
 #include "quake_camera.hpp"
 #include "timer_interface.hpp"
 
-class camera_path : public avk::invokee
+class camera_path
 {
 public:
-	camera_path(avk::quake_camera& cam)
+	camera_path(avk::quake_camera& cam, std::string filepath)
 		: mCam{ &cam } // Target camera
 		, mSpeed{ 0.1f } // How fast does it move
-		, mStartTime{} // Set in initialize()
-	{ 
-		// The path to follow
-		mPath = std::make_unique<avk::bezier_curve>(std::vector<glm::vec3>{ 
-			glm::vec3( 10.0f, 15.0f,  -10.0f),
-			glm::vec3(-10.0f,  5.0f,  - 5.0f),
-			glm::vec3(  0.0f,  0.0f,    0.0f),
-			glm::vec3( 10.0f, 15.0f,   10.0f),
-			glm::vec3( 10.0f, 10.0f,    0.0f)
-		});
-	}
-
-	int execution_order() const override
+		, mStartTime{avk::time().time_since_start()}
+		, mRecordingDensity(0.5) // Default recording density is 0.5 seconds
 	{
-		return 5; // run after quake_camera, s.t. we do not get any jittering from mouse movements
-	}
-
-	void initialize() override 
-	{
-		mStartTime = avk::time().time_since_start();
-	}
-
-	void update() override
-	{
-		auto t = (avk::time().time_since_start() - mStartTime) * mSpeed;
-		if (t >= 0.0f && t <= 1.0f) {
-			mCam->set_translation(mPath->value_at(t));
-			mCam->look_along(mPath->slope_at(t));
+		std::vector<glm::vec3> positions = {};
+		std::vector<glm::quat> rotations = {};
+		
+		// Load the path from the file
+		std::ifstream file(filepath);
+		if (file.is_open()) {
+			std::string line;
+			while (std::getline(file, line)) {
+				std::istringstream iss(line);
+				glm::vec3 pos;
+				glm::quat rot;
+				iss >> pos.x >> pos.y >> pos.z >> rot.x >> rot.y >> rot.z >> rot.w;
+				positions.push_back(pos);
+				rotations.push_back(rot);
+			}
+			file.close();
 		}
+		else {
+			throw avk::runtime_error("Could not open file " + filepath);
+		}
+
+		mPathPositions = std::make_unique<avk::bezier_curve>(positions);
+		// mRotationPath = std::make_unique<avk::bezier_curve>(rotations);
+		
+	}
+	
+
+	void update()
+	{
+		// Use the RecoringDensity to move the camera along the path
+		// Assume each control point is recorded at exactly RecordingDensity seconds
+		// So we can calculate the current control point by dividing the current time by RecordingDensity
+		// This will give us the index of the control point we should be at
+
+		// Calculate the current time
+		auto t = (avk::time().time_since_start() - mStartTime);
+		// Calculate the current control point index
+		auto index = t / mRecordingDensity;
+		// Get the position at the current control point
+		auto pos = mPathPositions->value_at(index);
+		// auto rot = mRotationPath->value_at(index);
+		// Set the camera position
+		mCam->set_translation(pos);
+		mCam->look_along(mPathPositions->slope_at(t));
 	}
 
 private:
 	avk::quake_camera* mCam;
 	float mSpeed;
 	float mStartTime;
-	std::unique_ptr<avk::cp_interpolation> mPath;
+	float mRecordingDensity;
+	std::unique_ptr<avk::cp_interpolation> mPathPositions;
+	std::unique_ptr<avk::cp_interpolation> mRotationPath;
+	// std::unique_ptr<std::vector<glm::vec3>> mRecordingPathPositions;
+	// std::unique_ptr<std::vector<glm::quat>> mRecordingPathRotations;
+
 };

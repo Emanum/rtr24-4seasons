@@ -40,7 +40,7 @@ public:
 	void stop_recording()
 	{
 		mRecording = false;
-		save_to_disk("camera_path.txt");
+		save_to_disk("assets\\camera_path.txt");
 	}
 
 	void _save_to_disk(std::string path, std::unique_ptr<std::vector<glm::vec3>> mRecordingPathPositions, std::unique_ptr<std::vector<glm::quat>> mRecordingPathRotations)

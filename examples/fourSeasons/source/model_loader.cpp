@@ -401,24 +401,37 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		if(mCameraPathRecorder.has_value()) {
 			mCameraPathRecorder->update();
 		}
+
+		// Start following the camera path:
+		if(avk::input().key_pressed(avk::key_code::f)) {
+			if (mCameraPath.has_value()) {
+				mCameraPath.reset();
+			}
+			else {
+				mCameraPath.emplace(mQuakeCam, "assets/camera_path.txt");
+			}
+		}
+		if (mCameraPath.has_value()) {
+			mCameraPath->update();
+		}
 		
 
 		// Automatic camera path:
-		if (avk::input().key_pressed(avk::key_code::c)) {
-			if (avk::input().key_down(avk::key_code::left_shift)) { // => disable
-				if (mCameraPath.has_value()) {
-					avk::current_composition()->remove_element_immediately(mCameraPath.value());
-					mCameraPath.reset();
-				}
-			}
-			else { // => enable
-				if (mCameraPath.has_value()) {
-					avk::current_composition()->remove_element_immediately(mCameraPath.value());
-				}
-				mCameraPath.emplace(mQuakeCam);
-				avk::current_composition()->add_element(mCameraPath.value());
-			}
-		}
+		// if (avk::input().key_pressed(avk::key_code::c)) {
+		// 	if (avk::input().key_down(avk::key_code::left_shift)) { // => disable
+		// 		if (mCameraPath.has_value()) {
+		// 			avk::current_composition()->remove_element_immediately(mCameraPath.value());
+		// 			mCameraPath.reset();
+		// 		}
+		// 	}
+		// 	else { // => enable
+		// 		if (mCameraPath.has_value()) {
+		// 			avk::current_composition()->remove_element_immediately(mCameraPath.value());
+		// 		}
+		// 		mCameraPath.emplace(mQuakeCam);
+		// 		avk::current_composition()->add_element(mCameraPath.value());
+		// 	}
+		// }
 	}
 
 private: // v== Member variables ==v
