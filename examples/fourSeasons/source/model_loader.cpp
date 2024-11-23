@@ -231,6 +231,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
 
 				ImGui::Separator();
+				ImGui::Text("F: play automatic camera path");
+				ImGui::Text("R record new camera path");
+				ImGui::Separator();
 				bool quakeCamEnabled = mQuakeCam.is_enabled();
 				if (ImGui::Checkbox("Enable Quake Camera", &quakeCamEnabled)) {
 					if (quakeCamEnabled) { // => should be enabled
@@ -389,6 +392,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		// Automatic camera path recording:
 		if (avk::input().key_pressed(avk::key_code::r)) {
+			mQuakeCam.enable();
 			if (mCameraPathRecorder.has_value()) {
 				mCameraPathRecorder->stop_recording();
 				mCameraPathRecorder.reset();
@@ -404,6 +408,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		// Start following the camera path:
 		if(avk::input().key_pressed(avk::key_code::f)) {
+			mQuakeCam.enable();
 			if (mCameraPath.has_value()) {
 				mCameraPath.reset();
 			}

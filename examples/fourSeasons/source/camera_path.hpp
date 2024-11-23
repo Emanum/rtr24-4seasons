@@ -10,7 +10,7 @@ class camera_path
 public:
 	camera_path(avk::quake_camera& cam, std::string filepath)
 		: mCam{ &cam } // Target camera
-		, mSpeed{ 0.1f } // How fast does it move
+		, mSpeed{ 1.0f } // How fast does it move
 		, mStartTime{avk::time().time_since_start()}
 		, mRecordingDensity(0.5) // Default recording density is 0.5 seconds
 	{
@@ -50,14 +50,25 @@ public:
 
 		// Calculate the current time
 		auto t = (avk::time().time_since_start() - mStartTime);
-		// Calculate the current control point index
-		auto index = t / mRecordingDensity;
+
+		auto numberOfControlPoints = mPathPositions->num_control_points();
+		auto total_time_span = mRecordingDensity * numberOfControlPoints ;
+
+		auto percentage = t / total_time_span * mSpeed;
+		if (percentage > 1.0f) {
+			// restart the path
+			mStartTime = avk::time().time_since_start();
+			percentage = 0.0f;
+		}
+		
 		// Get the position at the current control point
-		auto pos = mPathPositions->value_at(index);
+		auto pos = mPathPositions->value_at(percentage);
 		// auto rot = mRotationPath->value_at(index);
 		// Set the camera position
 		mCam->set_translation(pos);
-		mCam->look_along(mPathPositions->slope_at(t));
+		// temp look at origin
+		mCam->look_at(glm::vec3{0.0f, 0.0f, 0.0f});
+		// mCam->look_along(mPathPositions->slope_at(t));
 	}
 
 private:
