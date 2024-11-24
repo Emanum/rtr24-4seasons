@@ -58,7 +58,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mDescriptorCache = avk::context().create_descriptor_cache();
 
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/4seasons.obj", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/backupScene.obj", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
