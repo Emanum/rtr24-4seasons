@@ -41,6 +41,8 @@
   <ItemGroup>
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\diffuse_shading_fixed_lightsource.frag" />
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\transform_and_pass_pos_nrm_uv.vert" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\skybox.vert" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\skybox.frag" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="..\..\..\examples\fourSeasons\resources\" />

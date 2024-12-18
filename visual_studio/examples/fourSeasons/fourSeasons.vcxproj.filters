@@ -32,6 +32,12 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\transform_and_pass_pos_nrm_uv.vert">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\skybox.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\skybox.frag">
+      <Filter>shaders</Filter>
+    </None>
     <None Include="..\..\..\assets\4seasons.obj">
       <Filter>assets</Filter>
     </None>

@@ -11,6 +11,7 @@
 #include "ui_helper.hpp"
 #include "vk_convenience_functions.hpp"
 #include "camera_path_recorder.hpp"
+#include "math_utils.hpp"
 
 class model_loader_app : public avk::invokee
 {
@@ -35,6 +36,14 @@ class model_loader_app : public avk::invokee
 		int mMaterialIndex;
 	};
 
+	//for skybox
+	struct view_projection_matrices {
+		glm::mat4 mProjectionMatrix;
+		glm::mat4 mModelViewMatrix;
+		glm::mat4 mInverseModelViewMatrix;
+		float mLodBias = 0.0f;
+	};
+
 public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	model_loader_app(avk::queue& aQueue)
 		: mQueue{ &aQueue }
@@ -56,9 +65,56 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		// Create a descriptor cache that helps us to conveniently create descriptor sets:
 		mDescriptorCache = avk::context().create_descriptor_cache();
+		
+		// Load cube map from file or from cache file:
+		const std::string cacheFilePath("assets/cubemap.cache");
+		auto serializer = avk::serializer(cacheFilePath);
+
+		// Load a cubemap image file
+		// The cubemap texture coordinates start in the upper right corner of the skybox faces,
+		// which coincides with the memory layout of the textures. Therefore we don't need to flip them along the y axis.
+		// Note that lookup operations in a cubemap are defined in a left-handed coordinate system,
+		// i.e. when looking at the positive Z face from inside the cube, the positive X face is to the right.
+		avk::image cubemapImage;
+		avk::command::action_type_command loadImageCommand;
+
+		// Load the textures for all cubemap faces from one file (.ktx or .dds format), or from six individual files
+		std::tie(cubemapImage, loadImageCommand) = avk::create_cubemap_from_file(
+			"assets/yokohama_at_night-All-Mipmaps-Srgb-RGB8-DXT1-SRGB.ktx",
+			true, // <-- load in HDR if possible 
+			true, // <-- load in sRGB if applicable
+			false // <-- flip along the y-axis
+		);
+		avk::context().record_and_submit_with_fence({ std::move(loadImageCommand) }, *mQueue)->wait_until_signalled();
+		auto cubemapSampler = avk::context().create_sampler(avk::filter_mode::trilinear, avk::border_handling_mode::clamp_to_edge, static_cast<float>(cubemapImage->create_info().mipLevels));
+		auto cubemapImageView = avk::context().create_image_view(cubemapImage, {}, avk::image_usage::general_cube_map_texture);
+		mImageSamplerCubemap = avk::context().create_image_sampler(cubemapImageView, cubemapSampler);
+
+		// Load a cube as the skybox from file
+		// Since the cubemap uses a left-handed coordinate system, we declare the cube to be defined in the same coordinate system as well.
+		// This simplifies coordinate transformations later on. To transform the cube vertices back to right-handed world coordinates for display,
+		// we adjust its model matrix accordingly. Note that this also changes the winding order of faces, i.e. front faces
+		// of the cube that have CCW order when viewed from the outside now have CCW order when viewed from inside the cube.
+		{
+			auto cube = avk::model_t::load_from_file("assets/cube.obj", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+
+			auto& newElement = mDrawCallsSkybox.emplace_back();
+
+			// 2. Build all the buffers for the GPU
+			std::vector<avk::mesh_index_t> indices = { 0 };
+
+			auto modelMeshSelection = avk::make_model_references_and_mesh_indices_selection(cube, indices);
+
+			auto [mPositionsBuffer, mIndexBuffer, geometryCommands] = avk::create_vertex_and_index_buffers({ modelMeshSelection });
+			avk::context().record_and_submit_with_fence({ std::move(geometryCommands) }, *mQueue)->wait_until_signalled();
+
+			newElement.mPositionsBuffer = std::move(mPositionsBuffer);
+			newElement.mIndexBuffer = std::move(mIndexBuffer);
+		}
+		
 
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/backupScene.obj", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/test.gltf", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -155,6 +211,30 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			);
 		}
 
+		//Create Buffer for skybox
+		mViewProjBufferSkybox = avk::context().create_buffer(
+			avk::memory_usage::host_coherent, {},
+			avk::uniform_buffer_meta::create_from_data(view_projection_matrices())
+		);
+
+		mPipelineSkybox = avk::context().create_graphics_pipeline_for(
+			// Specify which shaders the pipeline consists of:
+			avk::vertex_shader("shaders/skybox.vert"),
+			avk::fragment_shader("shaders/skybox.frag"),
+			// The next line defines the format and location of the vertex shader inputs:
+			// (The dummy values (like glm::vec3) tell the pipeline the format of the respective input)
+			avk::from_buffer_binding(0)->stream_per_vertex<glm::vec3>()->to_location(0), // <-- corresponds to vertex shader's inPosition
+			// Some further settings:
+			avk::cfg::front_face::define_front_faces_to_be_counter_clockwise(),
+			avk::cfg::viewport_depth_scissors_config::from_framebuffer(avk::context().main_window()->backbuffer_reference_at_index(0)),
+			// We'll render to the back buffer, which has a color attachment always, and in our case additionally a depth 
+			// attachment, which has been configured when creating the window. See main() function!
+			avk::context().main_window()->get_renderpass(), // Just use the same renderpass
+			// The following define additional data which we'll pass to the pipeline:
+			avk::descriptor_binding(0, 0, mViewProjBufferSkybox),
+			avk::descriptor_binding(0, 1, mImageSamplerCubemap->as_combined_image_sampler(avk::layout::general))
+		);
+		
 		auto swapChainFormat = avk::context().main_window()->swap_chain_image_format();
 		// Create our rasterization graphics pipeline with the required configuration:
 		mPipeline = avk::context().create_graphics_pipeline_for(
@@ -206,12 +286,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			}
 			auto renderPass = avk::context().create_renderpass(renderpassAttachments, avk::context().main_window()->renderpass_reference().subpass_dependencies());
 			avk::context().replace_render_pass_for_pipeline(mPipeline, std::move(renderPass));
+			// TODO also for mPipelineSkybox?!?!?
 		}).then_on( // ... next, at this point, we are sure that the render pass is correct -> check if there are events that would update the pipeline
 			avk::swapchain_changed_event(avk::context().main_window()),
-			avk::shader_files_changed_event(mPipeline.as_reference())
-		).update(mPipeline);
-
-
+			avk::shader_files_changed_event(mPipeline.as_reference()),
+			avk::shader_files_changed_event(mPipelineSkybox.as_reference())
+		).update(mPipeline, mPipelineSkybox);
+		
+		
 		// Add the cameras to the composition (and let them handle updates)
 		mOrbitCam.set_translation({ 0.0f, 0.0f, 0.0f });
 		mQuakeCam.set_translation({ 0.0f, 0.0f, 0.0f });
@@ -280,7 +362,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			});
 		}
 	}
-
+	
 	void render() override
 	{
 		auto mainWnd = avk::context().main_window();
@@ -442,6 +524,16 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 private: // v== Member variables ==v
 
 	std::chrono::high_resolution_clock::time_point mInitTime;
+
+	//skybox
+	avk::image_sampler mImageSamplerCubemap;
+	
+	std::vector<data_for_draw_call> mDrawCallsSkybox;
+	avk::graphics_pipeline mPipelineSkybox;
+
+	avk::buffer mViewProjBufferSkybox;
+
+	//scene:
 
 	avk::queue* mQueue;
 	avk::descriptor_cache mDescriptorCache;
