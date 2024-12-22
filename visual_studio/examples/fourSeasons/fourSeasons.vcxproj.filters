@@ -41,6 +41,15 @@
     <None Include="..\..\..\assets\4seasons.obj">
       <Filter>assets</Filter>
     </None>
+    <None Include="..\..\..\assets\cube.obj">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\SkyDawn.dds">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\assets\SkyWater.dds">
+      <Filter>assets</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="cg_stdafx.hpp">
