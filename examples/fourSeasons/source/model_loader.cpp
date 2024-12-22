@@ -80,7 +80,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		// Load the textures for all cubemap faces from one file (.ktx or .dds format), or from six individual files
 		std::tie(cubemapImage, loadImageCommand) = avk::create_cubemap_from_file(
-			"assets/yokohama_at_night-All-Mipmaps-Srgb-RGB8-DXT1-SRGB.ktx",
+			"assets/SkyWater.dds",
 			true, // <-- load in HDR if possible 
 			true, // <-- load in sRGB if applicable
 			false // <-- flip along the y-axis
