@@ -38,16 +38,28 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\skybox.frag">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\..\..\assets\4seasons.obj">
+    <None Include="..\..\..\rtr24-4seasons-assets\skybox\cube.obj">
       <Filter>assets</Filter>
     </None>
-    <None Include="..\..\..\assets\cube.obj">
+    <None Include="..\..\..\rtr24-4seasons-assets\skybox\SkyDawn.dds">
       <Filter>assets</Filter>
     </None>
-    <None Include="..\..\..\assets\SkyDawn.dds">
+    <None Include="..\..\..\rtr24-4seasons-assets\skybox\SkyWater.dds">
       <Filter>assets</Filter>
     </None>
-    <None Include="..\..\..\assets\SkyWater.dds">
+    <None Include="..\..\..\rtr24-4seasons-assets\Environment.fbx">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\rtr24-4seasons-assets\aerial_rocks_04_2k.blend\textures\aerial_rocks_04_diff_2k.jpg">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\rtr24-4seasons-assets\aerial_rocks_04_2k.blend\textures\aerial_rocks_04_disp_2k.png">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\rtr24-4seasons-assets\aerial_rocks_04_2k.blend\textures\aerial_rocks_04_nor_gl_2k.jpg">
+      <Filter>assets</Filter>
+    </None>
+    <None Include="..\..\..\rtr24-4seasons-assets\aerial_rocks_04_2k.blend\textures\aerial_rocks_04_rough_2k.jpg">
       <Filter>assets</Filter>
     </None>
   </ItemGroup>

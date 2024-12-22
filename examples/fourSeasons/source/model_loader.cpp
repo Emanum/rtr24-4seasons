@@ -114,7 +114,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		
 
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/test.gltf", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/Environment.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
