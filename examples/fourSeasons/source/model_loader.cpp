@@ -362,16 +362,45 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			});
 		}
 	}
-	
+
+	void update_uniform_buffers(avk::window::frame_id_t ifi)
+	{
+		auto viewProjMat = mQuakeCam.is_enabled()
+			                   ? mQuakeCam.projection_and_view_matrix()
+			                   : mOrbitCam.projection_and_view_matrix();
+
+		auto viewMatrix = mQuakeCam.is_enabled()
+			                  ? mQuakeCam.view_matrix()
+			                  : mOrbitCam.view_matrix();
+
+		auto projectionMatrix = mQuakeCam.is_enabled()
+			                        ? mQuakeCam.projection_matrix()
+			                        : mOrbitCam.projection_matrix();
+
+		// mirror x axis to transform cubemap coordinates to righ-handed coordinates
+		auto mirroredViewMatrix = avk::mirror_matrix(viewMatrix, avk::principal_axis::x);
+
+		view_projection_matrices viewProjMat2{
+			projectionMatrix,
+			viewMatrix,
+			glm::inverse(mirroredViewMatrix),
+			0.0f
+		};
+
+		auto emptyCmd = mViewProjBuffers[ifi]->fill(glm::value_ptr(viewProjMat), 0);
+		
+		// scale skybox, mirror x axis, cancel out translation
+		viewProjMat2.mModelViewMatrix = avk::cancel_translation_from_matrix(mirroredViewMatrix * mModelMatrixSkybox);
+
+		auto emptyToo = mViewProjBufferSkybox->fill(&viewProjMat2, 0);
+	}
+
 	void render() override
 	{
 		auto mainWnd = avk::context().main_window();
 		auto ifi = mainWnd->current_in_flight_index();
 
-		auto viewProjMat = mQuakeCam.is_enabled()
-		    ? mQuakeCam.projection_and_view_matrix()
-		    : mOrbitCam.projection_and_view_matrix();
-		auto emptyCmd = mViewProjBuffers[ifi]->fill(glm::value_ptr(viewProjMat), 0);
+		update_uniform_buffers(ifi);
 		
 		// Get a command pool to allocate command buffers from:
 		auto& commandPool = avk::context().get_command_pool_for_single_use_command_buffers(*mQueue);
@@ -384,7 +413,18 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto cmdBfr = commandPool->alloc_command_buffer(vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 		
 		avk::context().record({
-				avk::command::render_pass(mPipeline->renderpass_reference(), avk::context().main_window()->current_backbuffer_reference(), {
+				avk::command::render_pass(mPipelineSkybox->renderpass_reference(), avk::context().main_window()->current_backbuffer_reference(), avk::command::gather(
+					// First, draw the skybox:
+					avk::command::bind_pipeline(mPipelineSkybox.as_reference()),
+					avk::command::bind_descriptors(mPipelineSkybox->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+						avk::descriptor_binding(0, 0, mViewProjBufferSkybox),
+						avk::descriptor_binding(0, 1, mImageSamplerCubemap->as_combined_image_sampler(avk::layout::general))
+					})),
+					avk::command::one_for_each(mDrawCallsSkybox, [](const data_for_draw_call& drawCall) {
+						return avk::command::draw_indexed(drawCall.mIndexBuffer.as_reference(), drawCall.mPositionsBuffer.as_reference());
+					}),
+
+					// Then, draw the rest of the scene:
 					avk::command::bind_pipeline(mPipeline.as_reference()),
 					avk::command::bind_descriptors(mPipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 						avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
@@ -416,9 +456,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 								)
 							});
 						}
-					}),
-
-				})
+					})
+				))
 			})
 			.into_command_buffer(cmdBfr)
 			.then_submit_to(*mQueue)
@@ -558,6 +597,9 @@ private: // v== Member variables ==v
 	std::optional<slider_container<int>> mNumPresentableImagesSlider;
 	std::optional<check_box_container> mResizableWindowCheckbox;
 	std::optional<check_box_container> mAdditionalAttachmentsCheckbox;
+
+	const float mScaleSkybox = 100.f;
+	const glm::mat4 mModelMatrixSkybox = glm::scale(glm::vec3(mScaleSkybox));
 
 }; // model_loader_app
 
