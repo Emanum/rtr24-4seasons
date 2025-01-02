@@ -80,7 +80,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		// Load the textures for all cubemap faces from one file (.ktx or .dds format), or from six individual files
 		std::tie(cubemapImage, loadImageCommand) = avk::create_cubemap_from_file(
-			"assets/SkyWater.dds",
+			"assets/SkyDawn.dds",
 			true, // <-- load in HDR if possible 
 			true, // <-- load in sRGB if applicable
 			false // <-- flip along the y-axis
@@ -114,7 +114,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		
 
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/Environment.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/simpleScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -297,8 +297,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		// Add the cameras to the composition (and let them handle updates)
 		mOrbitCam.set_translation({ 0.0f, 0.0f, 0.0f });
 		mQuakeCam.set_translation({ 0.0f, 0.0f, 0.0f });
-		mOrbitCam.set_perspective_projection(glm::radians(60.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
-		mQuakeCam.set_perspective_projection(glm::radians(60.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
+		mOrbitCam.set_perspective_projection(glm::radians(30.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
+		mQuakeCam.set_perspective_projection(glm::radians(30.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
 		avk::current_composition()->add_element(mOrbitCam);
 		avk::current_composition()->add_element(mQuakeCam);
 		mQuakeCam.disable();
