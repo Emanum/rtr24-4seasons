@@ -44,6 +44,14 @@ class model_loader_app : public avk::invokee
 		float mLodBias = 0.0f;
 	};
 
+	//for DoF
+	struct DoFData {
+		int mEnabled = 0;
+		float mNear = 5.0f;
+		float mFar = 50.0f;
+	};
+
+	
 public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	model_loader_app(avk::queue& aQueue)
 		: mQueue{ &aQueue }
@@ -61,6 +69,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mResizableWindowCheckbox = model_loader_ui_generator::get_window_resize_imgui_element();
 		mAdditionalAttachmentsCheckbox = model_loader_ui_generator::get_additional_attachments_imgui_element();
 
+		//depth of field
+		mDoFSliderNear = slider_container<float>{"DoF_ Near", 5, 0.3f, 100, [this](float val) { this->mDoFNear = val; }};
+		mDoFSliderFar = slider_container<float>{"DoF_ Far", 50, 0.3f, 100, [this](float val) { this->mDoFFar = val; }};
+		mDoFEnabledCheckbox = check_box_container{ "DoF_ Enabled", true, [this](bool val) { this->mDoFEnabled = val; } };
+		
 		mInitTime = std::chrono::high_resolution_clock::now();
 
 		// Create a descriptor cache that helps us to conveniently create descriptor sets:
@@ -217,6 +230,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::uniform_buffer_meta::create_from_data(view_projection_matrices())
 		);
 
+		//Create Buffer for DoF
+		mDoFBuffer = avk::context().create_buffer(
+			avk::memory_usage::host_coherent, {},
+			avk::uniform_buffer_meta::create_from_data(DoFData())
+		);
+
 		mPipelineSkybox = avk::context().create_graphics_pipeline_for(
 			// Specify which shaders the pipeline consists of:
 			avk::vertex_shader("shaders/skybox.vert"),
@@ -260,7 +279,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::push_constant_binding_data { avk::shader_type::vertex, 0, sizeof(transformation_matrices) },
 			avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
 			avk::descriptor_binding(0, 1, mViewProjBuffers[0]),
-			avk::descriptor_binding(1, 0, mMaterialBuffer)
+			avk::descriptor_binding(1, 0, mMaterialBuffer),
+			avk::descriptor_binding(2, 0, mDoFBuffer)
 		);
 
 		// set up updater
@@ -342,7 +362,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					mOrbitCam.enable();
 				}
 				ImGui::Separator();
-
+				
+				mDoFEnabledCheckbox->invokeImGui();
+				mDoFSliderFar->invokeImGui();
+				mDoFSliderNear->invokeImGui();
+				ImGui::Separator();
+				
 				ImGui::DragFloat3("Scale", glm::value_ptr(mScale), 0.005f, 0.01f, 10.0f);
 				ImGui::Checkbox("Enable/Disable invokee", &isEnabled);
 				if (isEnabled != this->is_enabled())
@@ -357,6 +382,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				mNumConcurrentFramesSlider->invokeImGui();
 				mNumPresentableImagesSlider->invokeImGui();
 				mPresentationModeCombo->invokeImGui();
+
+				
 
 				ImGui::End();
 			});
@@ -393,6 +420,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		viewProjMat2.mModelViewMatrix = avk::cancel_translation_from_matrix(mirroredViewMatrix * mModelMatrixSkybox);
 
 		auto emptyToo = mViewProjBufferSkybox->fill(&viewProjMat2, 0);
+
+		//DoF
+		DoFData dofData;
+		dofData.mEnabled = mDoFEnabled;
+		dofData.mNear = mDoFNear;
+		dofData.mFar = mDoFFar;
+		auto dofCmd = mDoFBuffer->fill(&dofData, 0);
 	}
 
 	void render() override
@@ -429,7 +463,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					avk::command::bind_descriptors(mPipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 						avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
 						avk::descriptor_binding(0, 1, mViewProjBuffers[ifi]),
-						avk::descriptor_binding(1, 0, mMaterialBuffer)
+						avk::descriptor_binding(1, 0, mMaterialBuffer),
+						avk::descriptor_binding(2, 0, mDoFBuffer)
 					})),
 
 					// Draw all the draw calls:
@@ -590,6 +625,8 @@ private: // v== Member variables ==v
 	std::optional<camera_path> mCameraPath;
 	std::optional<camera_path_recorder> mCameraPathRecorder;
 
+	avk::buffer mDoFBuffer;
+
 	// imgui elements
 	std::optional<combo_box_container> mPresentationModeCombo;
 	std::optional<check_box_container> mSrgbFrameBufferCheckbox;
@@ -597,6 +634,16 @@ private: // v== Member variables ==v
 	std::optional<slider_container<int>> mNumPresentableImagesSlider;
 	std::optional<check_box_container> mResizableWindowCheckbox;
 	std::optional<check_box_container> mAdditionalAttachmentsCheckbox;
+
+	//slider for depth of field (circle of confusion), near and far plane
+	std::optional<slider_container<float>> mDoFSliderNear;
+	std::optional<slider_container<float>> mDoFSliderFar;
+	std::optional<check_box_container> mDoFEnabledCheckbox;
+
+	//depth of field data
+	float mDoFNear = 0.3f;
+	float mDoFFar = 20.0f;
+	int mDoFEnabled = 1;
 
 	const float mScaleSkybox = 100.f;
 	const glm::mat4 mModelMatrixSkybox = glm::scale(glm::vec3(mScaleSkybox));

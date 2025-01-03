@@ -18,6 +18,7 @@ layout (location = 0) out vec3 positionWS;
 layout (location = 1) out vec3 normalWS;
 layout (location = 2) out vec2 texCoord;
 layout (location = 3) flat out int materialIndex;
+layout (location = 4) out float fragDepth; 
 
 void main() {
 	vec4 posWS = pushConstants.mModelMatrix * vec4(inPosition.xyz, 1.0);
@@ -26,4 +27,5 @@ void main() {
 	normalWS = mat3(pushConstants.mModelMatrix) * inNormal;
 	materialIndex = pushConstants.mMaterialIndex;
     gl_Position = ubo.mViewProjMatrix * posWS;
+	fragDepth = gl_Position.z / gl_Position.w; // Pass the depth value
 }

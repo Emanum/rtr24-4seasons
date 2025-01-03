@@ -63,10 +63,19 @@ layout(set = 1, binding = 0) buffer Material
 	MaterialGpuData materials[];
 } matSsbo;
 
+//near and far planes for DoF
+layout(set = 2, binding = 0) uniform uniformDoF
+{
+	int enabled;
+	float near;
+	float far;
+} DoF;
+
 layout (location = 0) in vec3 positionWS;
 layout (location = 1) in vec3 normalWS;
 layout (location = 2) in vec2 texCoord;
 layout (location = 3) flat in int materialIndex;
+layout (location = 4) in float fragDepth;
 
 layout (location = 0) out vec4 fs_out;
 
@@ -84,4 +93,12 @@ void main()
 	color *= illum;
 	
 	fs_out = vec4(color, 1.0);
+
+	if (DoF.enabled == 1){
+		// Normalize the depth value to [0, 1] range
+		float depth = (fragDepth + 1.0) * 0.5;
+	
+		// Display the depth value as grayscale
+		fs_out = vec4(vec3(depth), 1.0);
+	}
 }
