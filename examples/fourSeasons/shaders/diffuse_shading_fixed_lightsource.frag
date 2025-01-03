@@ -67,8 +67,9 @@ layout(set = 1, binding = 0) buffer Material
 layout(set = 2, binding = 0) uniform uniformDoF
 {
 	int enabled;
-	float near;
-	float far;
+	float focus;
+	float range;
+	float distOutOfFocus;
 } DoF;
 
 layout (location = 0) in vec3 positionWS;
@@ -95,10 +96,35 @@ void main()
 	fs_out = vec4(color, 1.0);
 
 	if (DoF.enabled == 1){
-		// Normalize the depth value to [0, 1] range
+		// Calculate the depth of field effect
+		float focus = DoF.focus;
+		float range = DoF.range;
+		float distOutOfFocus = DoF.distOutOfFocus;
+		float focusDepth = focus;
+		float nearDepth = focusDepth - range;
+		float farDepth = focusDepth + range;
 		float depth = (fragDepth + 1.0) * 0.5;
-	
-		// Display the depth value as grayscale
-		fs_out = vec4(vec3(depth), 1.0);
+		float blur = 0.0;
+
+		// Visualize the depth of field effect
+		// black -> in focus, red -> near blur, green -> far blur
+		vec3 focusColor = vec3(0.0, 0.0, 0.0); // Black
+		vec3 nearBlurColor = vec3(1.0, 0.0, 0.0); // Red
+		vec3 farBlurColor = vec3(0.0, 1.0, 0.0); // Green
+
+		if (depth < nearDepth) {
+			blur = smoothstep(nearDepth - distOutOfFocus, nearDepth, depth);
+			color = mix(nearBlurColor, focusColor, blur);
+		} else if (depth > farDepth) {
+			blur = smoothstep(farDepth, farDepth + distOutOfFocus, depth);
+			color = mix(focusColor, farBlurColor, blur);
+		} else {
+			color = focusColor;
+		}
+
+		fs_out = vec4(color, 1.0);
+		
+		
+			
 	}
 }

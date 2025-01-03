@@ -47,8 +47,9 @@ class model_loader_app : public avk::invokee
 	//for DoF
 	struct DoFData {
 		int mEnabled = 0;
-		float mNear = 5.0f;
-		float mFar = 50.0f;
+		float mFocus = 3.0f; //at what distance the focus is
+		float mFocusRange = 1.5f; //how far the focus reaches (in both directions), i.e. the range of sharpness
+		float mDistOutOfFocus = 3.0f; //how much from the start of the out of focus area until the image is completely out of focus
 	};
 
 	
@@ -70,9 +71,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mAdditionalAttachmentsCheckbox = model_loader_ui_generator::get_additional_attachments_imgui_element();
 
 		//depth of field
-		mDoFSliderNear = slider_container<float>{"DoF_ Near", 5, 0.3f, 100, [this](float val) { this->mDoFNear = val; }};
-		mDoFSliderFar = slider_container<float>{"DoF_ Far", 50, 0.3f, 100, [this](float val) { this->mDoFFar = val; }};
-		mDoFEnabledCheckbox = check_box_container{ "DoF_ Enabled", true, [this](bool val) { this->mDoFEnabled = val; } };
+		mDoFSliderFocus = slider_container<float>{"Focus", 3, 0.1f, 15, [this](float val) { this->mDoFFocus = val; }};
+		mDoFSliderFocusRange = slider_container<float>{"Range", 1.5, 0.1f, 15, [this](float val) { this->mDoFFocusRange= val; }};
+		mDoFSliderDistanceOutOfFocus = slider_container<float>{"Dist", 3, 0.1f, 15, [this](float val) { this->mDoFDistanceOutOfFocus = val; }};
+		mDoFEnabledCheckbox = check_box_container{ "Enabled", true, [this](bool val) { this->mDoFEnabled = val; } };
 		
 		mInitTime = std::chrono::high_resolution_clock::now();
 
@@ -362,10 +364,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					mOrbitCam.enable();
 				}
 				ImGui::Separator();
-				
+				ImGui::Text("Depth of Field");
 				mDoFEnabledCheckbox->invokeImGui();
-				mDoFSliderFar->invokeImGui();
-				mDoFSliderNear->invokeImGui();
+				mDoFSliderFocus->invokeImGui();
+				mDoFSliderFocusRange->invokeImGui();
+				mDoFSliderDistanceOutOfFocus->invokeImGui();
 				ImGui::Separator();
 				
 				ImGui::DragFloat3("Scale", glm::value_ptr(mScale), 0.005f, 0.01f, 10.0f);
@@ -424,8 +427,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		//DoF
 		DoFData dofData;
 		dofData.mEnabled = mDoFEnabled;
-		dofData.mNear = mDoFNear;
-		dofData.mFar = mDoFFar;
+		dofData.mFocus = mDoFFocus;
+		dofData.mFocusRange = mDoFFocusRange;
+		dofData.mDistOutOfFocus = mDoFDistanceOutOfFocus;
 		auto dofCmd = mDoFBuffer->fill(&dofData, 0);
 	}
 
@@ -636,13 +640,15 @@ private: // v== Member variables ==v
 	std::optional<check_box_container> mAdditionalAttachmentsCheckbox;
 
 	//slider for depth of field (circle of confusion), near and far plane
-	std::optional<slider_container<float>> mDoFSliderNear;
-	std::optional<slider_container<float>> mDoFSliderFar;
+	std::optional<slider_container<float>> mDoFSliderFocus;
+	std::optional<slider_container<float>> mDoFSliderFocusRange;
+	std::optional<slider_container<float>> mDoFSliderDistanceOutOfFocus;
 	std::optional<check_box_container> mDoFEnabledCheckbox;
 
 	//depth of field data
-	float mDoFNear = 0.3f;
-	float mDoFFar = 20.0f;
+	float mDoFFocus = 10.0f;
+	float mDoFFocusRange = 5.0f;
+	float mDoFDistanceOutOfFocus = 0.0f;
 	int mDoFEnabled = 1;
 
 	const float mScaleSkybox = 100.f;
