@@ -80,6 +80,7 @@ layout (location = 4) in float fragDepth;
 
 layout (location = 0) out vec4 fs_out;
 
+
 void main() 
 {
 	int matIndex = materialIndex;
@@ -123,8 +124,5 @@ void main()
 		}
 
 		fs_out = vec4(color, 1.0);
-		
-		
-			
 	}
 }

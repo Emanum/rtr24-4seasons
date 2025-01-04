@@ -38,6 +38,12 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\skybox.frag">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\screenspace.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\screenspace.vert">
+      <Filter>shaders</Filter>
+    </None>
     <None Include="..\..\..\rtr24-4seasons-assets\skybox\cube.obj">
       <Filter>assets</Filter>
     </None>

@@ -43,6 +43,8 @@
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\transform_and_pass_pos_nrm_uv.vert" />
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\skybox.vert" />
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\skybox.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\screenspace.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\screenspace.vert" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="..\..\..\examples\fourSeasons\resources\" />

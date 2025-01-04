@@ -52,6 +52,27 @@ class model_loader_app : public avk::invokee
 		float mDistOutOfFocus = 3.0f; //how much from the start of the out of focus area until the image is completely out of focus
 	};
 
+	const std::vector<glm::vec2> mScreenspaceQuadVertexData = {
+		{-1.0f, -1.0f},
+		{ 1.0f, -1.0f},
+		{ 1.0f,  1.0f},
+		{-1.0f,  1.0f}
+	};
+
+	const std::vector<uint16_t> mScreenspaceQuadIndexData = {
+		0, 1, 2,
+		2, 3, 0
+	};
+
+	// const std::vector<glm::vec2> mScreenspaceQuadTexCoords = {
+	// 	{0.0f, 0.0f},
+	// 	{1.0f, 0.0f},
+	// 	{1.0f, 1.0f},
+	// 	{0.0f, 1.0f}
+	// };
+	
+	
+
 	
 public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	model_loader_app(avk::queue& aQueue)
@@ -232,12 +253,57 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::uniform_buffer_meta::create_from_data(view_projection_matrices())
 		);
 
-		//Create Buffer for DoF
+
+		//Create a Framebuffer for the screenspace effects (Main scene renders into this framebuffer, then this
+		//framebuffer is used to render a quad with the screenspace effect).
+		const auto r = avk::context().main_window()->resolution();
+		auto colorAttachment = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		auto depthAttachment = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eD32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_depth_stencil_attachment));
+		auto colorAttachmentDescription = avk::attachment::declare_for(colorAttachment.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::color(0)     , avk::on_store::store);
+		auto depthAttachmentDescription = avk::attachment::declare_for(depthAttachment.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::store);
+		
+		mOneFramebuffer = avk::context().create_framebuffer(
+			{ colorAttachmentDescription, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
+			avk::make_vector( colorAttachment, depthAttachment )
+		);
+		
+
+		//Create Buffer for DoF effect
 		mDoFBuffer = avk::context().create_buffer(
 			avk::memory_usage::host_coherent, {},
 			avk::uniform_buffer_meta::create_from_data(DoFData())
 		);
 
+		//Create Vertex Buffer for Screenspace Quad
+		{
+			mVertexBufferScreenspace = avk::context().create_buffer(
+				avk::memory_usage::device, {},
+				// Create the buffer on the device, i.e. in GPU memory, (no additional usage flags).
+				// because the screenspace quad is static, we can use device memory
+				avk::vertex_buffer_meta::create_from_data(mScreenspaceQuadVertexData)
+			);
+			// Submit the Vertex Buffer fill command to the device:
+			auto fence = avk::context().record_and_submit_with_fence({
+				mVertexBufferScreenspace->fill(mScreenspaceQuadVertexData.data(), 0)
+			}, *mQueue);
+			// Wait on the host until the device is done:
+			fence->wait_until_signalled();
+
+			mIndexBufferScreenspace = avk::context().create_buffer(
+				avk::memory_usage::device, {},
+				avk::index_buffer_meta::create_from_data(mScreenspaceQuadIndexData)
+			);
+			auto fence2 = avk::context().record_and_submit_with_fence({
+				mIndexBufferScreenspace->fill(mScreenspaceQuadIndexData.data(), 0)
+			}, *mQueue);
+			fence2->wait_until_signalled();
+		}
+
+		auto screenspaceSampler = avk::context().create_sampler(avk::filter_mode::trilinear, avk::border_handling_mode::clamp_to_edge);
+		auto screenspaceImageView = avk::context().create_image_view(cubemapImage, {}, avk::image_usage::general_cube_map_texture);
+		
+		mImageSamplerScreenspace = avk::context().create_image_sampler(screenspaceImageView, screenspaceSampler);
+		
 		mPipelineSkybox = avk::context().create_graphics_pipeline_for(
 			// Specify which shaders the pipeline consists of:
 			avk::vertex_shader("shaders/skybox.vert"),
@@ -248,9 +314,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// Some further settings:
 			avk::cfg::front_face::define_front_faces_to_be_counter_clockwise(),
 			avk::cfg::viewport_depth_scissors_config::from_framebuffer(avk::context().main_window()->backbuffer_reference_at_index(0)),
-			// We'll render to the back buffer, which has a color attachment always, and in our case additionally a depth 
-			// attachment, which has been configured when creating the window. See main() function!
-			avk::context().main_window()->get_renderpass(), // Just use the same renderpass
+			// We'll render to the framebuffer, only color no depth needed cause skybox is always at infinity
+			colorAttachmentDescription,
+			
 			// The following define additional data which we'll pass to the pipeline:
 			avk::descriptor_binding(0, 0, mViewProjBufferSkybox),
 			avk::descriptor_binding(0, 1, mImageSamplerCubemap->as_combined_image_sampler(avk::layout::general))
@@ -269,13 +335,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::from_buffer_binding(2) -> stream_per_vertex<glm::vec3>() -> to_location(2), // <-- corresponds to vertex shader's inNormal
 			// Some further settings:
 			avk::cfg::front_face::define_front_faces_to_be_counter_clockwise(),
-			avk::cfg::viewport_depth_scissors_config::from_framebuffer(avk::context().main_window()->backbuffer_reference_at_index(0)),
-			// We'll render to the back buffer, which has a color attachment always, and in our case additionally a depth
-			// attachment, which has been configured when creating the window. See main() function!
-			avk::context().create_renderpass({
-				avk::attachment::declare(avk::format_from_window_color_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::color(0)     , avk::on_store::store),	 
-				avk::attachment::declare(avk::format_from_window_depth_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
-			}, avk::context().main_window()->renderpass_reference().subpass_dependencies()),
+			avk::cfg::viewport_depth_scissors_config::from_framebuffer(avk::context().main_window()->backbuffer_reference_at_index(0)),	// Align viewport with main window's resolution
+			
+			// We'll render to the framebuffer
+			colorAttachmentDescription,
+			depthAttachmentDescription,
+			
 			// The following define additional data which we'll pass to the pipeline:
 			//   We'll pass two matrices to our vertex shader via push constants:
 			avk::push_constant_binding_data { avk::shader_type::vertex, 0, sizeof(transformation_matrices) },
@@ -285,8 +350,35 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(2, 0, mDoFBuffer)
 		);
 
+		//Pipeline for Screenspace Effects (DoF)
+		//Basically we just need to render a quad with the texture of the result of the previous pipeline and apply the DoF effect
+		//In addition we also need to pass the depth buffer to the pipeline from the previous pipeline
+		
+
 		// set up updater
 		// we want to use an updater, so create one:
+		mPipelineScreenspace = avk::context().create_graphics_pipeline_for(
+			// Specify which shaders the pipeline consists of:
+			avk::vertex_shader("shaders/screenspace.vert"),
+			avk::fragment_shader("shaders/screenspace.frag"),
+			
+			avk::from_buffer_binding(0) -> stream_per_vertex<glm::vec2>() -> to_location(0), // <-- corresponds to vertex shader's inPosition
+
+			// Some further settings:
+			avk::cfg::front_face::define_front_faces_to_be_counter_clockwise(),
+			avk::cfg::viewport_depth_scissors_config::from_framebuffer(avk::context().main_window()->backbuffer_reference_at_index(0)),	// Align viewport with main window's resolution
+
+			// We'll render to the back buffer, which has a color attachment always, and in our case additionally a depth
+			// attachment, which has been configured when creating the window. See main() function!
+			avk::context().create_renderpass({
+				avk::attachment::declare(avk::format_from_window_color_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::color(0), avk::on_store::store),	 
+				avk::attachment::declare(avk::format_from_window_depth_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
+			}, avk::context().main_window()->renderpass_reference().subpass_dependencies()),
+			
+			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
+			avk::descriptor_binding(0, 1, mImageSamplerScreenspace->as_combined_image_sampler(avk::layout::general))
+		);
+			
 
 		mUpdater.emplace();
 		mPipeline.enable_shared_ownership(); // Make it usable with the updater
@@ -452,7 +544,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		
 		avk::context().record({
 				avk::command::render_pass(mPipelineSkybox->renderpass_reference(), avk::context().main_window()->current_backbuffer_reference(), avk::command::gather(
-					// First, draw the skybox:
+					/**
+					 * First, draw the skybox
+					 */
 					avk::command::bind_pipeline(mPipelineSkybox.as_reference()),
 					avk::command::bind_descriptors(mPipelineSkybox->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 						avk::descriptor_binding(0, 0, mViewProjBufferSkybox),
@@ -461,8 +555,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					avk::command::one_for_each(mDrawCallsSkybox, [](const data_for_draw_call& drawCall) {
 						return avk::command::draw_indexed(drawCall.mIndexBuffer.as_reference(), drawCall.mPositionsBuffer.as_reference());
 					}),
-
-					// Then, draw the rest of the scene:
+					
+					/**
+					 * Then, draw the rest of the scene:
+					 */
 					avk::command::bind_pipeline(mPipeline.as_reference()),
 					avk::command::bind_descriptors(mPipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 						avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
@@ -496,6 +592,52 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 							});
 						}
 					})
+
+					// /**
+					//  * Copy the framebuffer into the image for the screenspace effects
+					//  */
+					// //Color attachment at index 0", "Depth attachment at index 1
+					// // Transition the layouts before performing the transfer operation:
+					// avk::sync::image_memory_barrier(mOneFramebuffer->image_at(0),
+					// // None here, because we're synchronizing with a semaphore
+					// avk::stage::color_attachment_output  >> avk::stage::copy | avk::stage::blit,
+					// avk::access::color_attachment_write  >> avk::access::transfer_read
+					// ).with_layout_transition(avk::layout::color_attachment_optimal >> avk::layout::transfer_src),
+					// avk::sync::image_memory_barrier(mainWnd->current_backbuffer()->image_at(0),
+					// 	avk::stage::color_attachment_output  >> avk::stage::copy | avk::stage::blit,
+					// 	avk::access::color_attachment_write  >> avk::access::transfer_write
+					// ).with_layout_transition(avk::layout::undefined >> avk::layout::transfer_dst),
+					//
+					// // Perform the transfer operation:
+					// avk::copy_image_to_another(
+					// 	mOneFramebuffer->image_at(0), avk::layout::transfer_src,
+					// 	mImageSamplerScreenspace->get_image(), avk::layout::transfer_dst
+					// ),
+					//
+					// // Transition the layouts back:
+					// avk::sync::image_memory_barrier(mOneFramebuffer->image_at(0),
+					// 	avk::stage::copy | avk::stage::blit            >> avk::stage::none,
+					// 	avk::access::transfer_read                     >> avk::access::none
+					// ).with_layout_transition(avk::layout::transfer_src >> avk::layout::color_attachment_optimal), // Restore layout
+					// avk::sync::image_memory_barrier(mainWnd->current_backbuffer()->image_at(0),
+					// 	avk::stage::copy | avk::stage::blit            >> avk::stage::color_attachment_output,
+					// 	avk::access::transfer_write                    >> avk::access::color_attachment_write
+					// ).with_layout_transition(avk::layout::transfer_dst >> avk::layout::color_attachment_optimal),
+					//
+					//
+					//
+					// /**
+					//  * Draw the screenspace effects
+					//  */
+					// avk::command::bind_pipeline(mPipelineScreenspace.as_reference()),
+					// avk::command::bind_descriptors(mPipelineScreenspace->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+					// 	avk::descriptor_binding(0, 0, mImageSamplerCubemap->as_combined_image_sampler(avk::layout::general))
+					// })),
+					// //render the screenspace quad
+					// avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
+					
+
+					
 				))
 			})
 			.into_command_buffer(cmdBfr)
@@ -629,7 +771,13 @@ private: // v== Member variables ==v
 	std::optional<camera_path> mCameraPath;
 	std::optional<camera_path_recorder> mCameraPathRecorder;
 
+	avk::framebuffer mOneFramebuffer;
+	avk::graphics_pipeline mPipelineScreenspace;
 	avk::buffer mDoFBuffer;
+	avk::buffer mVertexBufferScreenspace;
+	avk::buffer mIndexBufferScreenspace;
+	avk::image_sampler mImageSamplerScreenspace;
+
 
 	// imgui elements
 	std::optional<combo_box_container> mPresentationModeCombo;
