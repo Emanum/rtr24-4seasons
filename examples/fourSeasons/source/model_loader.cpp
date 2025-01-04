@@ -380,7 +380,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// attachment, which has been configured when creating the window. See main() function!
 			avk::context().create_renderpass({
 				avk::attachment::declare(avk::format_from_window_color_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::color(0), avk::on_store::store),	 
-				avk::attachment::declare(avk::format_from_window_depth_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
+				// avk::attachment::declare(avk::format_from_window_depth_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
 			}, avk::context().main_window()->renderpass_reference().subpass_dependencies()),
 			
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
@@ -941,11 +941,11 @@ int main() // <== Starting point ==
 		// Create a window and open it
 		auto mainWnd = avk::context().create_window("4 Seasons");
 
-		mainWnd->set_resolution({ 1000, 480 });
-		mainWnd->enable_resizing(true);
-		mainWnd->set_additional_back_buffer_attachments({
-			avk::attachment::declare(vk::Format::eD32Sfloat, avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
-		});
+		mainWnd->set_resolution({ 1920, 1080 });
+		mainWnd->enable_resizing(false);
+		// mainWnd->set_additional_back_buffer_attachments({
+		// 	avk::attachment::declare(vk::Format::eD32Sfloat, avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
+		// });
 		mainWnd->set_presentaton_mode(avk::presentation_mode::mailbox);
 		mainWnd->set_number_of_concurrent_frames(3u);
 		mainWnd->open();
