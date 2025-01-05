@@ -40,7 +40,7 @@ void main() {
         vec3 depthColor = vec3(0.0);
 
         float mdistOutOfFocus = DoF.distOutOfFocus;
-        float mrange = DoF.range/100;
+        float mrange = DoF.range;
         
         float lowerBoundCenter = DoF.focus - mrange;
         float upperBoundCenter = DoF.focus + mrange;
@@ -53,14 +53,16 @@ void main() {
         } else if(depth < lowerBoundCenter)
         {
             //mix between foreground and center
-            depthColor = mix(foregroundColor, centerColor, (lowerBoundTotalOoF-depth) / lowerBoundTotalOoF - lowerBoundCenter);
+            float mixerg = ((lowerBoundTotalOoF-depth) / (lowerBoundTotalOoF - lowerBoundCenter));
+            depthColor = mix(foregroundColor, centerColor, mixerg);
         } else if(depth > lowerBoundCenter && depth < upperBoundCenter)
         {
             //center -> complete in focus
             depthColor = centerColor;
-        } else if(depth < upperBoundCenter)
+        } else if(depth < upperBoundTotalOoF)
         {
             //mix between center and background
+            float test = (depth - upperBoundCenter) / (upperBoundCenter - upperBoundTotalOoF);
             depthColor = mix(centerColor, backgroundColor, (depth - upperBoundCenter) / (upperBoundTotalOoF - upperBoundCenter));
         } else
         {
