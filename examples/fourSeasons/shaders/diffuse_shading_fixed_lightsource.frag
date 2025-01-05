@@ -63,15 +63,6 @@ layout(set = 1, binding = 0) buffer Material
 	MaterialGpuData materials[];
 } matSsbo;
 
-//near and far planes for DoF
-layout(set = 2, binding = 0) uniform uniformDoF
-{
-	int enabled;
-	float focus;
-	float range;
-	float distOutOfFocus;
-} DoF;
-
 layout (location = 0) in vec3 positionWS;
 layout (location = 1) in vec3 normalWS;
 layout (location = 2) in vec2 texCoord;

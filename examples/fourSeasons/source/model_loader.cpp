@@ -82,8 +82,6 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mNumConcurrentFramesSlider = model_loader_ui_generator::get_number_of_concurrent_frames_imgui_element();
 		mNumPresentableImagesSlider = model_loader_ui_generator::get_number_of_presentable_images_imgui_element(3, surfaceCap.minImageCount, surfaceCap.maxImageCount);
 		mResizableWindowCheckbox = model_loader_ui_generator::get_window_resize_imgui_element();
-		mAdditionalAttachmentsCheckbox = model_loader_ui_generator::get_additional_attachments_imgui_element();
-
 		//depth of field
 		mDoFSliderFocus = slider_container<float>{"Focus", 3, 0.1f, 15, [this](float val) { this->mDoFFocus = val; }};
 		mDoFSliderFocusRange = slider_container<float>{"Range", 1.5, 0.1f, 15, [this](float val) { this->mDoFFocusRange= val; }};
@@ -279,7 +277,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::memory_usage::host_coherent, {},
 			avk::uniform_buffer_meta::create_from_data(DoFData())
 		);
-
+		
 		//Create Vertex Buffer for Screenspace Quad
 		{
 			mVertexBufferScreenspace = avk::context().create_buffer(
@@ -357,8 +355,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::push_constant_binding_data { avk::shader_type::vertex, 0, sizeof(transformation_matrices) },
 			avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
 			avk::descriptor_binding(0, 1, mViewProjBuffers[0]),
-			avk::descriptor_binding(1, 0, mMaterialBuffer),
-			avk::descriptor_binding(2, 0, mDoFBuffer)
+			avk::descriptor_binding(1, 0, mMaterialBuffer)
 		);
 
 		//Pipeline for Screenspace Effects (DoF)
@@ -386,7 +383,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
 			avk::descriptor_binding(0, 0, mImageSamplerScreenspaceColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_attachment_optimal))
+			avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_attachment_optimal)),
+			avk::descriptor_binding(0, 2, mDoFBuffer)
 		);
 			
 
@@ -394,6 +392,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		// we want to use an updater, so create one:
 		mUpdater.emplace();
 		mPipelineScreenspace.enable_shared_ownership(); // Make it usable with the updater
+		mPipelineSkybox.enable_shared_ownership(); // Make it usable with the updater
+		mRasterizePipeline.enable_shared_ownership(); // Make it usable with the updater
 
 		mUpdater->on(avk::swapchain_resized_event(avk::context().main_window())).invoke([this]() {
 			this->mQuakeCam.set_aspect_ratio(avk::context().main_window()->aspect_ratio());
@@ -487,7 +487,6 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 				mSrgbFrameBufferCheckbox->invokeImGui();
 				mResizableWindowCheckbox->invokeImGui();
-				mAdditionalAttachmentsCheckbox->invokeImGui();
 				mNumConcurrentFramesSlider->invokeImGui();
 				mNumPresentableImagesSlider->invokeImGui();
 				mPresentationModeCombo->invokeImGui();
@@ -598,7 +597,6 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 						avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
 						avk::descriptor_binding(0, 1, mViewProjBuffers[ifi]),
 						avk::descriptor_binding(1, 0, mMaterialBuffer),
-						avk::descriptor_binding(2, 0, mDoFBuffer)
 					})),
 
 					// Draw all the draw calls:
@@ -643,7 +641,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					avk::command::bind_pipeline(mPipelineScreenspace.as_reference()),
 						avk::command::bind_descriptors(mPipelineScreenspace->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 							avk::descriptor_binding(0, 0, mImageSamplerScreenspaceColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-							avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_attachment_optimal))
+							avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_attachment_optimal)),
+							avk::descriptor_binding(0, 2, mDoFBuffer)
 						})),
 						avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 				)),
@@ -802,7 +801,6 @@ private: // v== Member variables ==v
 	std::optional<slider_container<int>> mNumConcurrentFramesSlider;
 	std::optional<slider_container<int>> mNumPresentableImagesSlider;
 	std::optional<check_box_container> mResizableWindowCheckbox;
-	std::optional<check_box_container> mAdditionalAttachmentsCheckbox;
 
 	//slider for depth of field (circle of confusion), near and far plane
 	std::optional<slider_container<float>> mDoFSliderFocus;
