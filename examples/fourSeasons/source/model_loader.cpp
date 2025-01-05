@@ -83,9 +83,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mNumPresentableImagesSlider = model_loader_ui_generator::get_number_of_presentable_images_imgui_element(3, surfaceCap.minImageCount, surfaceCap.maxImageCount);
 		mResizableWindowCheckbox = model_loader_ui_generator::get_window_resize_imgui_element();
 		//depth of field
-		mDoFSliderFocus = slider_container<float>{"Focus", 3, 0.1f, 15, [this](float val) { this->mDoFFocus = val; }};
-		mDoFSliderFocusRange = slider_container<float>{"Range", 1.5, 0.1f, 15, [this](float val) { this->mDoFFocusRange= val; }};
-		mDoFSliderDistanceOutOfFocus = slider_container<float>{"Dist", 3, 0.1f, 15, [this](float val) { this->mDoFDistanceOutOfFocus = val; }};
+		mDoFSliderFocus = slider_container<float>{"Focus", 0.3f, 0.0f, 1, [this](float val) { this->mDoFFocus = val; }};
+		mDoFSliderFocusRange = slider_container<float>{"Range", 0.1f, 0.0f, 1, [this](float val) { this->mDoFFocusRange= val; }};
+		mDoFSliderDistanceOutOfFocus = slider_container<float>{"Dist", 0.3f, 0.1f, 1, [this](float val) { this->mDoFDistanceOutOfFocus = val; }};
 		mDoFEnabledCheckbox = check_box_container{ "Enabled", true, [this](bool val) { this->mDoFEnabled = val; } };
 	}
 
@@ -809,9 +809,9 @@ private: // v== Member variables ==v
 	std::optional<check_box_container> mDoFEnabledCheckbox;
 
 	//depth of field data
-	float mDoFFocus = 10.0f;
-	float mDoFFocusRange = 5.0f;
-	float mDoFDistanceOutOfFocus = 0.0f;
+	float mDoFFocus = 0.3f;
+	float mDoFFocusRange = 0.1f;
+	float mDoFDistanceOutOfFocus = 0.1f;
 	int mDoFEnabled = 1;
 
 	const float mScaleSkybox = 100.f;
