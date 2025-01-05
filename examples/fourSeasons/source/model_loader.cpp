@@ -257,14 +257,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		//Create a Framebuffer for the screenspace effects (Main scene renders into this framebuffer, then this
 		const auto r = avk::context().main_window()->resolution();
 
-		mImageViewScreenspaceColor = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
-		mImageViewScreenspaceDepth =  avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eD32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_depth_stencil_attachment));
-		auto sampler = avk::context().create_sampler(avk::filter_mode::trilinear, avk::border_handling_mode::clamp_to_edge, 0);
-		mImageSamplerScreenspaceColor = avk::context().create_image_sampler(mImageViewScreenspaceColor, sampler);
-		mImageSamplerScreenspaceDepth = avk::context().create_image_sampler(mImageViewScreenspaceDepth, sampler);
+		// mImageViewScreenspaceColor = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		// mImageViewScreenspaceDepth =  avk::context().create_depth_image_view(avk::context().create_depth_image(r.x, r.y, vk::Format::eD32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_depth_stencil_attachment));
+
 		//framebuffer is used to render a quad with the screenspace effect).
 		auto colorAttachment = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
-		auto depthAttachment = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eD32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_depth_stencil_attachment));
+		auto depthAttachment = avk::context().create_depth_image_view(avk::context().create_depth_image(r.x, r.y, vk::Format::eD32Sfloat, 1, avk::memory_usage::device, avk::image_usage::depth_stencil_attachment));
 		auto colorAttachmentDescription = avk::attachment::declare_for(colorAttachment.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0)     , avk::on_store::store);
 		auto depthAttachmentDescription = avk::attachment::declare_for(depthAttachment.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::depth_attachment_optimal), avk::usage::depth_stencil, avk::on_store::store);
 
@@ -272,6 +270,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			{ colorAttachmentDescription, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
 			avk::make_vector( colorAttachment, depthAttachment )
 		);
+		auto sampler = avk::context().create_sampler(avk::filter_mode::trilinear, avk::border_handling_mode::clamp_to_edge, 0);
+		mImageSamplerScreenspaceColor = avk::context().create_image_sampler(mOneFramebuffer->image_view_at(0), sampler);
+		mImageSamplerScreenspaceDepth = avk::context().create_image_sampler(mOneFramebuffer->image_view_at(1), sampler);
 		
 		//Create Buffer for DoF effect
 		mDoFBuffer = avk::context().create_buffer(
@@ -385,7 +386,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
 			avk::descriptor_binding(0, 0, mImageSamplerScreenspaceColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal))
+			avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_attachment_optimal))
 		);
 			
 
@@ -635,143 +636,31 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		.waiting_for(imageAvailableSemaphore >> avk::stage::color_attachment_output)
 		.signaling_upon_completion(avk::stage::color_attachment_output >> rasterizerCompleteSemaphore)
 		.submit();
-
-
-		//copy the framebuffer into the image for the screenspace effects
-		avk::context().record(avk::command::gather(
-
-				// Copy Color
-				
-					// Transition the layouts before performing the transfer operation:
-					avk::sync::image_memory_barrier(mOneFramebuffer->image_at(0),
-						// None here, because we're synchronizing with a semaphore
-						avk::stage::color_attachment_output  >> avk::stage::copy | avk::stage::blit,
-						avk::access::color_attachment_write  >> avk::access::transfer_read
-					).with_layout_transition(avk::layout::color_attachment_optimal >> avk::layout::transfer_src),
-					
-					avk::sync::image_memory_barrier(mImageViewScreenspaceColor->get_image(),
-						avk::stage::color_attachment_output  >> avk::stage::copy | avk::stage::blit,
-						avk::access::color_attachment_write  >> avk::access::transfer_write
-					).with_layout_transition(avk::layout::undefined >> avk::layout::transfer_dst),
-					
-					// Perform the transfer operation:
-					avk::copy_image_to_another(
-								mOneFramebuffer->image_at(0), avk::layout::transfer_src,
-								mImageViewScreenspaceColor->get_image(), avk::layout::transfer_dst
-							),
-
-					// Transition the layouts back:
-					avk::sync::image_memory_barrier(mOneFramebuffer->image_at(0),
-						avk::stage::copy | avk::stage::blit            >> avk::stage::none,
-						avk::access::transfer_read                     >> avk::access::none
-					).with_layout_transition(avk::layout::transfer_src >> avk::layout::color_attachment_optimal), // Restore layout
-					avk::sync::image_memory_barrier(mImageViewScreenspaceColor->get_image(),
-						avk::stage::copy | avk::stage::blit            >> avk::stage::color_attachment_output,
-						avk::access::transfer_write                    >> avk::access::color_attachment_write
-					).with_layout_transition(avk::layout::transfer_dst >> avk::layout::color_attachment_optimal),
-					
-					// Copy Depth
-					
-					// Transition the layouts before performing the transfer operation:
-					avk::sync::image_memory_barrier(mOneFramebuffer->image_at(1),
-						// None here, because we're synchronizing with a semaphore
-						avk::stage::color_attachment_output  >> avk::stage::copy | avk::stage::blit,
-						avk::access::color_attachment_write  >> avk::access::transfer_read
-					).with_layout_transition(avk::layout::depth_stencil_attachment_optimal >> avk::layout::transfer_src),
-					
-					avk::sync::image_memory_barrier(mImageViewScreenspaceDepth->get_image(),
-						avk::stage::color_attachment_output  >> avk::stage::copy | avk::stage::blit,
-						avk::access::color_attachment_write  >> avk::access::transfer_write
-					).with_layout_transition(avk::layout::undefined >> avk::layout::transfer_dst),
-					
-					// Perform the transfer operation:
-					avk::copy_image_to_another(
-								mOneFramebuffer->image_at(1), avk::layout::transfer_src,
-								mImageViewScreenspaceDepth->get_image(), avk::layout::transfer_dst
-							),
-
-					// Transition the layouts back:
-					avk::sync::image_memory_barrier(mOneFramebuffer->image_at(1),
-						avk::stage::copy | avk::stage::blit            >> avk::stage::none,
-						avk::access::transfer_read                     >> avk::access::none
-					).with_layout_transition(avk::layout::transfer_src >> avk::layout::depth_stencil_attachment_optimal), // Restore layout
-					avk::sync::image_memory_barrier(mImageViewScreenspaceDepth->get_image(),
-						avk::stage::copy | avk::stage::blit            >> avk::stage::color_attachment_output,
-						avk::access::transfer_write                    >> avk::access::color_attachment_write
-					).with_layout_transition(avk::layout::transfer_dst >> avk::layout::depth_stencil_attachment_optimal)
-
-		))
-			.into_command_buffer(cmdBfrs[1])
-			.then_submit_to(*mQueue)
-			.waiting_for(rasterizerCompleteSemaphore >> (avk::stage::copy | avk::stage::blit))
-			.signaling_upon_completion((avk::stage::copy | avk::stage::blit) >> copyCompleteSemaphore)
-			.submit();
-		// Let the command buffer handle the semaphore lifetimes:
-		cmdBfrs[1]->handle_lifetime_of(std::move(rasterizerCompleteSemaphore));
+		
 					
 		avk::context().record({
 				avk::command::render_pass(mPipelineScreenspace->renderpass_reference(), avk::context().main_window()->current_backbuffer_reference(), avk::command::gather(
 					avk::command::bind_pipeline(mPipelineScreenspace.as_reference()),
 						avk::command::bind_descriptors(mPipelineScreenspace->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 							avk::descriptor_binding(0, 0, mImageSamplerScreenspaceColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-							avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal))
+							avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_attachment_optimal))
 						})),
-						//render the screenspace quad
 						avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
-						// avk::command::draw(4u, 2u, 0u, 0u)
-		
-					// /**
-					//  * Copy the framebuffer into the image for the screenspace effects
-					//  */
-					// //Color attachment at index 0", "Depth attachment at index 1
-					// // Transition the layouts before performing the transfer operation:
-					// avk::sync::image_memory_barrier(mOneFramebuffer->image_at(0),
-					// // None here, because we're synchronizing with a semaphore
-					// avk::stage::color_attachment_output  >> avk::stage::copy | avk::stage::blit,
-					// avk::access::color_attachment_write  >> avk::access::transfer_read
-					// ).with_layout_transition(avk::layout::color_attachment_optimal >> avk::layout::transfer_src),
-					// avk::sync::image_memory_barrier(mainWnd->current_backbuffer()->image_at(0),
-					// 	avk::stage::color_attachment_output  >> avk::stage::copy | avk::stage::blit,
-					// 	avk::access::color_attachment_write  >> avk::access::transfer_write+
-					// ).with_layout_transition(avk::layout::undefined >> avk::layout::transfer_dst),
-					//
-					// // Perform the transfer operation:
-					// avk::copy_image_to_another(
-					// 	mOneFramebuffer->image_at(0), avk::layout::transfer_src,
-					// 	mImageSamplerScreenspace->get_image(), avk::layout::transfer_dst
-					// ),
-					//
-					// // Transition the layouts back:
-					// avk::sync::image_memory_barrier(mOneFramebuffer->image_at(0),
-					// 	avk::stage::copy | avk::stage::blit            >> avk::stage::none,
-					// 	avk::access::transfer_read                     >> avk::access::none
-					// ).with_layout_transition(avk::layout::transfer_src >> avk::layout::color_attachment_optimal), // Restore layout
-					// avk::sync::image_memory_barrier(mainWnd->current_backbuffer()->image_at(0),
-					// 	avk::stage::copy | avk::stage::blit            >> avk::stage::color_attachment_output,
-					// 	avk::access::transfer_write                    >> avk::access::color_attachment_write
-					// ).with_layout_transition(avk::layout::transfer_dst >> avk::layout::color_attachment_optimal),
-					//
-					//
-					//
-					// /**
-					//  * Draw the screenspace effects
-					//  */
-					
 				)),
 		})
-			.into_command_buffer(cmdBfrs[2])
+			.into_command_buffer(cmdBfrs[1])
 			.then_submit_to(*mQueue)
 			// Do not start to render before the copy has been done:
-			.waiting_for(copyCompleteSemaphore >> (avk::stage::copy | avk::stage::blit))
+			.waiting_for(rasterizerCompleteSemaphore >> avk::stage::color_attachment_output)
 			.submit();
 		// Let the command buffer handle the semaphore lifetimes:
-		cmdBfrs[2]->handle_lifetime_of(std::move(copyCompleteSemaphore));
+		cmdBfrs[1]->handle_lifetime_of(std::move(rasterizerCompleteSemaphore));
 		
 		// Use a convenience function of avk::window to take care of the command buffers lifetimes:
 		// They will get deleted in the future after #concurrent-frames have passed by.
 		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[0]));
 		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[1]));
-		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[2]));
+		// avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[2]));
 
 		// avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[2]));
 	}
@@ -903,8 +792,6 @@ private: // v== Member variables ==v
 	avk::buffer mDoFBuffer;
 	avk::buffer mVertexBufferScreenspace;
 	avk::buffer mIndexBufferScreenspace;
-	avk::image_view mImageViewScreenspaceColor;
-	avk::image_view mImageViewScreenspaceDepth;
 	avk::image_sampler mImageSamplerScreenspaceColor;
 	avk::image_sampler mImageSamplerScreenspaceDepth;
 
