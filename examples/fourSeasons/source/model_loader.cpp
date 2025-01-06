@@ -47,6 +47,7 @@ class model_loader_app : public avk::invokee
 	//for DoF
 	struct DoFData {
 		int mEnabled = 0;
+		int mMode; //0 = depth, 1 = gaussian, 2 = bokeh
 		float mFocus = 3.0f; //at what distance the focus is
 		float mFocusRange = 1.5f; //how far the focus reaches (in both directions), i.e. the range of sharpness
 		float mDistOutOfFocus = 3.0f; //how much from the start of the out of focus area until the image is completely out of focus
@@ -84,9 +85,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mResizableWindowCheckbox = model_loader_ui_generator::get_window_resize_imgui_element();
 		//depth of field
 		mDoFSliderFocus = slider_container<float>{"Focus", 0.3f, 0.0f, 1, [this](float val) { this->mDoFFocus = val; }};
-		mDoFSliderFocusRange = slider_container<float>{"Range", 0.1f, 0.0f, 1, [this](float val) { this->mDoFFocusRange= val; }};
-		mDoFSliderDistanceOutOfFocus = slider_container<float>{"Dist", 0.3f, 0.1f, 1, [this](float val) { this->mDoFDistanceOutOfFocus = val; }};
+		mDoFSliderFocusRange = slider_container<float>{"Range", 0.01f, 0.0f, 0.1, [this](float val) { this->mDoFFocusRange= val; }};
+		mDoFSliderDistanceOutOfFocus = slider_container<float>{"Dist", 0.05f, 0.0f, 0.2, [this](float val) { this->mDoFDistanceOutOfFocus = val; }};
 		mDoFEnabledCheckbox = check_box_container{ "Enabled", true, [this](bool val) { this->mDoFEnabled = val; } };
+		mDoFModeCombo = combo_box_container{ "Mode", { "depth", "gaussian", "bokeh" }, 1, [this](std::string val) { this->mDoFMode = val; } };
 	}
 
 	void init_skybox()
@@ -472,6 +474,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				ImGui::Separator();
 				ImGui::Text("Depth of Field");
 				mDoFEnabledCheckbox->invokeImGui();
+				mDoFModeCombo->invokeImGui();
 				mDoFSliderFocus->invokeImGui();
 				mDoFSliderFocusRange->invokeImGui();
 				mDoFSliderDistanceOutOfFocus->invokeImGui();
@@ -532,6 +535,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		//DoF
 		DoFData dofData;
 		dofData.mEnabled = mDoFEnabled;
+		dofData.mMode = (mDoFMode == "depth") ? 0 : (mDoFMode == "gaussian") ? 1 : 2;
 		dofData.mFocus = mDoFFocus;
 		dofData.mFocusRange = mDoFFocusRange;
 		dofData.mDistOutOfFocus = mDoFDistanceOutOfFocus;
@@ -807,12 +811,14 @@ private: // v== Member variables ==v
 	std::optional<slider_container<float>> mDoFSliderFocusRange;
 	std::optional<slider_container<float>> mDoFSliderDistanceOutOfFocus;
 	std::optional<check_box_container> mDoFEnabledCheckbox;
+	std::optional<combo_box_container> mDoFModeCombo;
 
 	//depth of field data
 	float mDoFFocus = 0.3f;
 	float mDoFFocusRange = 0.1f;
 	float mDoFDistanceOutOfFocus = 0.1f;
 	int mDoFEnabled = 1;
+	std::string mDoFMode = "gaussian";
 
 	const float mScaleSkybox = 100.f;
 	const glm::mat4 mModelMatrixSkybox = glm::scale(glm::vec3(mScaleSkybox));

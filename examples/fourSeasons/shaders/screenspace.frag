@@ -9,6 +9,7 @@ layout(set = 0, binding = 1) uniform sampler2D depthTexture;
 layout(set = 0, binding = 2) uniform uniformDoF
 {
     int enabled;
+    int mode;//0-> depth, 1-> gaussian, 2-> bokeh
     float focus;
     float range;
     float distOutOfFocus;
@@ -17,7 +18,7 @@ layout(set = 0, binding = 2) uniform uniformDoF
 // Gaussian kernel
 const float kernel[9] = float[](0.027, 0.065, 0.121, 0.194, 0.227, 0.194, 0.121, 0.065, 0.027);
 
-const float blurPower = 10.0;
+const float blurPower = 40.0;
 
 const vec3 foregroundColor = vec3(1.0, 0.0, 0.0);//red
 
@@ -37,58 +38,58 @@ void main() {
         //But the jump between the groups should be smooth so we use the distOutOfFocus to make the transition smooth
         
         float depth = texture(depthTexture, texCoord).r;
-        vec3 depthColor = vec3(0.0);
 
         float mdistOutOfFocus = DoF.distOutOfFocus;
         float mrange = DoF.range;
-        
-        float lowerBoundCenter = DoF.focus - mrange;
-        float upperBoundCenter = DoF.focus + mrange;
-        float lowerBoundTotalOoF = DoF.focus - mrange - mdistOutOfFocus;
-        float upperBoundTotalOoF = DoF.focus + mrange + mdistOutOfFocus;
-        
-        if(depth < lowerBoundTotalOoF){
-            //total out of focus -> foreground
-            depthColor = foregroundColor;
-        } else if(depth < lowerBoundCenter)
+
+        float lowerBoundCenter = max(DoF.focus - mrange,0);
+        float upperBoundCenter = min(DoF.focus + mrange,1);
+        float lowerBoundTotalOoF = max(DoF.focus - mrange - mdistOutOfFocus,0);
+        float upperBoundTotalOoF = min(DoF.focus + mrange + mdistOutOfFocus,1);
+
+        vec3 depthVis = vec3(0.0);
+        if(depth <= lowerBoundCenter)
         {
             //mix between foreground and center
             float mixerg = ((lowerBoundTotalOoF-depth) / (lowerBoundTotalOoF - lowerBoundCenter));
-            depthColor = mix(foregroundColor, centerColor, mixerg);
+            depthVis = mix(foregroundColor, centerColor, mixerg);
         } else if(depth > lowerBoundCenter && depth < upperBoundCenter)
         {
             //center -> complete in focus
-            depthColor = centerColor;
-        } else if(depth < upperBoundTotalOoF)
+            depthVis = centerColor;
+        } else if(depth <= upperBoundTotalOoF)
         {
             //mix between center and background
             float test = (depth - upperBoundCenter) / (upperBoundCenter - upperBoundTotalOoF);
-            depthColor = mix(centerColor, backgroundColor, (depth - upperBoundCenter) / (upperBoundTotalOoF - upperBoundCenter));
-        } else
+            depthVis = mix(centerColor, backgroundColor, (depth - upperBoundCenter) / (upperBoundTotalOoF - upperBoundCenter));
+        }
+
+
+        //take the highest of the r or g value from the outOfFocus vector
+        float outOfFocusAmount = max(depthVis.r, depthVis.g);
+        
+        //now we have the outOfFocusAmount we can blur the screen texture using gaussian blur
+        //0-> no blur, 1-> full blur
+        float blurAmount = pow(outOfFocusAmount, blurPower) -1.0;
+        
+        vec4 ogColor = texture(screenTexture, texCoord);
+        vec4 blurColor = vec4(0.0);
+        for(int i = 0; i < 9; i++)
         {
-            //total out of focus -> background
-            depthColor = backgroundColor;
+            vec2 offset = vec2(float(i%3) - 1.0, float(i/3) - 1.0);
+            blurColor += texture(screenTexture, texCoord + offset / textureSize(screenTexture, 0)) * kernel[i];
         }
         
-        fs_out = vec4(depthColor, 1.0);
-        
-//        vec2 texelSize = 1.0 / textureSize(screenTexture, 0);
-//        vec3 color = vec3(0.0);
-//
-//        // Apply Gaussian blur vertically
-//        for (int i = -4; i <= 4; ++i) {
-//            color += texture(screenTexture, texCoord + vec2(0.0, texelSize.y * float(i))).rgb * kernel[i + 4];
-//        }
-//        
-//
-//        // Apply Gaussian blur horizontally
-//        vec3 blurredColor = vec3(0.0);
-//        for (int i = -4; i <= 4; ++i) {
-//            blurredColor += color * kernel[i + 4];
-//        }
-//
-//        fs_out = vec4(blurredColor, 1.0);
-        
+        if (DoF.mode == 0)
+        {
+            //depth
+            fs_out = vec4(depthVis, 1.0);
+        }else if(DoF.mode == 1 || DoF.mode == 2)
+        {
+            //gaussian
+            fs_out = mix(ogColor, blurColor, blurAmount);
+        }
+
     }else{
         fs_out = texture(screenTexture, texCoord);
     }
