@@ -389,8 +389,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// We'll render to the back buffer, which has a color attachment always, and in our case additionally a depth
 			// attachment, which has been configured when creating the window. See main() function!
 			avk::context().create_renderpass({
-				avk::attachment::declare(avk::format_from_window_color_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::color(0), avk::on_store::store),	 
-				// avk::attachment::declare(avk::format_from_window_depth_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
+				avk::attachment::declare(avk::format_from_window_color_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::color(0), avk::on_store::store),
+				avk::attachment::declare(avk::format_from_window_depth_buffer(avk::context().main_window()), avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
 			}, avk::context().main_window()->renderpass_reference().subpass_dependencies()),
 			
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
@@ -615,38 +615,38 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			)),
 			avk::command::render_pass(mRasterizePipeline->renderpass_reference(), mOneFramebuffer.as_reference(), avk::command::gather(
 				avk::command::bind_pipeline(mRasterizePipeline.as_reference()),
-					avk::command::bind_descriptors(mRasterizePipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-						avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
-						avk::descriptor_binding(0, 1, mViewProjBuffers[ifi]),
-						avk::descriptor_binding(1, 0, mMaterialBuffer),
-					})),
+				avk::command::bind_descriptors(mRasterizePipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+					avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
+					avk::descriptor_binding(0, 1, mViewProjBuffers[ifi]),
+					avk::descriptor_binding(1, 0, mMaterialBuffer),
+				})),
 
-					// Draw all the draw calls:
-					avk::command::custom_commands([&,this](avk::command_buffer_t& cb) { // If there is no avk::command::... struct for a particular command, we can always use avk::command::custom_commands
-						for (auto& drawCall : mDrawCalls) {
-							cb.record({
-								// Set the push constants per draw call:
-								avk::command::push_constants(
-									mRasterizePipeline->layout(),
-									transformation_matrices{
-										// Set model matrix for this mesh:
-										glm::scale(glm::vec3(0.01f) * mScale),
-										// Set material index for this mesh:
-										drawCall.mMaterialIndex
-									}
-								),
+				// Draw all the draw calls:
+				avk::command::custom_commands([&,this](avk::command_buffer_t& cb) { // If there is no avk::command::... struct for a particular command, we can always use avk::command::custom_commands
+					for (auto& drawCall : mDrawCalls) {
+						cb.record({
+							// Set the push constants per draw call:
+							avk::command::push_constants(
+								mRasterizePipeline->layout(),
+								transformation_matrices{
+									// Set model matrix for this mesh:
+									glm::scale(glm::vec3(0.01f) * mScale),
+									// Set material index for this mesh:
+									drawCall.mMaterialIndex
+								}
+							),
 
-								// Make the draw call:
-								avk::command::draw_indexed(
-									// Bind and use the index buffer:
-									drawCall.mIndexBuffer.as_reference(),
-									// Bind the vertex input buffers in the right order (corresponding to the layout specifiers in the vertex shader)
-									drawCall.mPositionsBuffer.as_reference(), drawCall.mTexCoordsBuffer.as_reference(), drawCall.mNormalsBuffer.as_reference()
-								)
-							});
-						}
-					})
-				))
+							// Make the draw call:
+							avk::command::draw_indexed(
+								// Bind and use the index buffer:
+								drawCall.mIndexBuffer.as_reference(),
+								// Bind the vertex input buffers in the right order (corresponding to the layout specifiers in the vertex shader)
+								drawCall.mPositionsBuffer.as_reference(), drawCall.mTexCoordsBuffer.as_reference(), drawCall.mNormalsBuffer.as_reference()
+							)
+						});
+					}
+				})
+			))
 		})
 		.into_command_buffer(cmdBfrs[0])
 		.then_submit_to(*mQueue)
@@ -659,22 +659,22 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		
 					
 		avk::context().record({
-				avk::command::render_pass(mPipelineScreenspace->renderpass_reference(), avk::context().main_window()->current_backbuffer_reference(), avk::command::gather(
-					avk::command::bind_pipeline(mPipelineScreenspace.as_reference()),
-						avk::command::bind_descriptors(mPipelineScreenspace->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-							avk::descriptor_binding(0, 0, mImageSamplerScreenspaceColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
-							avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
-							avk::descriptor_binding(0, 2, mDoFBuffer),
-							avk::descriptor_binding(0, 3, mSSAOBuffer)
-						})),
-						avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
-				)),
+			avk::command::render_pass(mPipelineScreenspace->renderpass_reference(), avk::context().main_window()->current_backbuffer_reference(), avk::command::gather(
+				avk::command::bind_pipeline(mPipelineScreenspace.as_reference()),
+				avk::command::bind_descriptors(mPipelineScreenspace->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+					avk::descriptor_binding(0, 0, mImageSamplerScreenspaceColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 2, mDoFBuffer),
+					avk::descriptor_binding(0, 3, mSSAOBuffer)
+				})),
+				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
+			)),
 		})
-			.into_command_buffer(cmdBfrs[1])
-			.then_submit_to(*mQueue)
-			// Do not start to render before the copy has been done:
-			.waiting_for(rasterizerCompleteSemaphore >> avk::stage::color_attachment_output)
-			.submit();
+		.into_command_buffer(cmdBfrs[1])
+		.then_submit_to(*mQueue)
+		// Do not start to render before the copy has been done:
+		.waiting_for(rasterizerCompleteSemaphore >> avk::stage::color_attachment_output)
+		.submit();
 		// Let the command buffer handle the semaphore lifetimes:
 		cmdBfrs[1]->handle_lifetime_of(std::move(rasterizerCompleteSemaphore));
 		
@@ -857,9 +857,9 @@ int main() // <== Starting point ==
 
 		mainWnd->set_resolution({ 1920, 1080 });
 		mainWnd->enable_resizing(false);
-		// mainWnd->set_additional_back_buffer_attachments({
-		// 	avk::attachment::declare(vk::Format::eD32Sfloat, avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
-		// });
+		mainWnd->set_additional_back_buffer_attachments({
+			avk::attachment::declare(vk::Format::eD32Sfloat, avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
+		});
 		mainWnd->set_presentaton_mode(avk::presentation_mode::mailbox);
 		mainWnd->set_number_of_concurrent_frames(3u);
 		mainWnd->open();
@@ -880,7 +880,7 @@ int main() // <== Starting point ==
 
 		// Compile all the configuration parameters and the invokees into a "composition":
 		auto composition = configure_and_compose(
-			avk::application_name("Auto-Vk-Toolkit Example: Model Loader"),
+			avk::application_name("4-Seasons Demo"),
 			[](avk::validation_layers& config) {
 				config.enable_feature(vk::ValidationFeatureEnableEXT::eSynchronizationValidation);
 			},
