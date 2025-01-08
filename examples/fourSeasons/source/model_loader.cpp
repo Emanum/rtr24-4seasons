@@ -53,6 +53,11 @@ class model_loader_app : public avk::invokee
 		float mDistOutOfFocus = 3.0f; //how much from the start of the out of focus area until the image is completely out of focus
 	};
 
+	//for SSAO
+	struct SSAOData {
+		int mEnabled = 0;
+	};
+
 	const std::vector<glm::vec2> mScreenspaceQuadVertexData = {
 		{-1.0f, -1.0f},
 		{ 1.0f, -1.0f},
@@ -84,9 +89,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mNumPresentableImagesSlider = model_loader_ui_generator::get_number_of_presentable_images_imgui_element(3, surfaceCap.minImageCount, surfaceCap.maxImageCount);
 		mResizableWindowCheckbox = model_loader_ui_generator::get_window_resize_imgui_element();
 		//depth of field
-		mDoFSliderFocus = slider_container<float>{"Focus", 0.3f, 0.0f, 1, [this](float val) { this->mDoFFocus = val; }};
-		mDoFSliderFocusRange = slider_container<float>{"Range", 0.01f, 0.0f, 0.1, [this](float val) { this->mDoFFocusRange= val; }};
-		mDoFSliderDistanceOutOfFocus = slider_container<float>{"Dist", 0.05f, 0.0f, 0.2, [this](float val) { this->mDoFDistanceOutOfFocus = val; }};
+		mDoFSliderFocus = slider_container<float>{ "Focus", 0.3f, 0.0f, 1, [this](float val) { this->mDoFFocus = val; } };
+		mDoFSliderFocusRange = slider_container<float>{ "Range", 0.01f, 0.0f, 0.1, [this](float val) { this->mDoFFocusRange = val; } };
+		mDoFSliderDistanceOutOfFocus = slider_container<float>{ "Dist", 0.05f, 0.0f, 0.2, [this](float val) { this->mDoFDistanceOutOfFocus = val; } };
 		mDoFEnabledCheckbox = check_box_container{ "Enabled", true, [this](bool val) { this->mDoFEnabled = val; } };
 		mDoFModeCombo = combo_box_container{ "Mode", { "depth", "gaussian", "bokeh" }, 1, [this](std::string val) { this->mDoFMode = val; } };
 	}
@@ -143,7 +148,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	void init_scene()
 	{
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/simpleScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/Environment.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -159,7 +164,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// 1. Gather all the vertex and index data from the sub meshes:
 			for (auto index : pair.second) {
 				avk::append_indices_and_vertex_data(
-					avk::additional_index_data(	newElement.mIndices,	[&]() { return sponza->indices_for_mesh<uint32_t>(index);								} ),
+					avk::additional_index_data(	newElement.mIndices,	[&]() { return sponza->indices_for_mesh<uint32_t>(index);					} ),
 					avk::additional_vertex_data(newElement.mPositions,	[&]() { return sponza->positions_for_mesh(index);							} ),
 					avk::additional_vertex_data(newElement.mTexCoords,	[&]() { return sponza->texture_coordinates_for_mesh<glm::vec2>(index, 0);	} ),
 					avk::additional_vertex_data(newElement.mNormals,	[&]() { return sponza->normals_for_mesh(index);								} )
@@ -197,12 +202,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 			// Submit all the fill commands to the queue:
 			auto fence = avk::context().record_and_submit_with_fence({
-				                                                         std::move(posFillCmd),
-				                                                         std::move(tcoFillCmd),
-				                                                         std::move(nrmFillCmd),
-				                                                         std::move(idxFillCmd)
-				                                                         // ^ No need for any synchronization in-between, because the commands do not depend on each other.
-			                                                         }, *mQueue);
+				std::move(posFillCmd),
+				std::move(tcoFillCmd),
+				std::move(nrmFillCmd),
+				std::move(idxFillCmd)
+				// ^ No need for any synchronization in-between, because the commands do not depend on each other.
+			}, *mQueue);
 			// Wait on the host until the device is done:
 			fence->wait_until_signalled();
 		}
@@ -227,9 +232,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		// Submit the commands material commands and the materials buffer fill to the device:
 		auto matFence = avk::context().record_and_submit_with_fence({
-			                                                            std::move(materialCommands),
-			                                                            mMaterialBuffer->fill(gpuMaterials.data(), 0)
-		                                                            }, *mQueue);
+			std::move(materialCommands),
+			mMaterialBuffer->fill(gpuMaterials.data(), 0)
+		}, *mQueue);
 		matFence->wait_until_signalled();
 
 		// Create a buffer for the transformation matrices in a host coherent memory region (one for each frame in flight):
@@ -264,7 +269,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto colorAttachment = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto depthAttachment = avk::context().create_depth_image_view(avk::context().create_depth_image(r.x, r.y, vk::Format::eD32Sfloat, 1, avk::memory_usage::device, avk::image_usage::depth_stencil_attachment));
 		auto colorAttachmentDescription = avk::attachment::declare_for(colorAttachment.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0)     , avk::on_store::store);
-		auto depthAttachmentDescription = avk::attachment::declare_for(depthAttachment.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::depth_attachment_optimal), avk::usage::depth_stencil, avk::on_store::store);
+		auto depthAttachmentDescription = avk::attachment::declare_for(depthAttachment.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::depth_stencil_attachment_optimal), avk::usage::depth_stencil, avk::on_store::store);
 
 		mOneFramebuffer = avk::context().create_framebuffer(
 			{ colorAttachmentDescription, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
@@ -279,6 +284,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::memory_usage::host_coherent, {},
 			avk::uniform_buffer_meta::create_from_data(DoFData())
 		);
+
+		mSSAOBuffer = avk::context().create_buffer(
+			avk::memory_usage::host_coherent, {},
+			avk::uniform_buffer_meta::create_from_data(SSAOData())
+		);
 		
 		//Create Vertex Buffer for Screenspace Quad
 		{
@@ -290,8 +300,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			);
 			// Submit the Vertex Buffer fill command to the device:
 			auto fence = avk::context().record_and_submit_with_fence({
-				                                                         mVertexBufferScreenspace->fill(mScreenspaceQuadVertexData.data(), 0)
-			                                                         }, *mQueue);
+				mVertexBufferScreenspace->fill(mScreenspaceQuadVertexData.data(), 0)
+			}, *mQueue);
 			// Wait on the host until the device is done:
 			fence->wait_until_signalled();
 
@@ -300,8 +310,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::index_buffer_meta::create_from_data(mScreenspaceQuadIndexData)
 			);
 			auto fence2 = avk::context().record_and_submit_with_fence({
-				                                                          mIndexBufferScreenspace->fill(mScreenspaceQuadIndexData.data(), 0)
-			                                                          }, *mQueue);
+				mIndexBufferScreenspace->fill(mScreenspaceQuadIndexData.data(), 0)
+			}, *mQueue);
 			fence2->wait_until_signalled();
 			
 		}
@@ -385,8 +395,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
 			avk::descriptor_binding(0, 0, mImageSamplerScreenspaceColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_attachment_optimal)),
-			avk::descriptor_binding(0, 2, mDoFBuffer)
+			avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 2, mDoFBuffer),
+			avk::descriptor_binding(0, 3, mSSAOBuffer)
 		);
 			
 
@@ -479,6 +490,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				mDoFSliderFocusRange->invokeImGui();
 				mDoFSliderDistanceOutOfFocus->invokeImGui();
 				ImGui::Separator();
+				ImGui::Text("Screen-Space Ambient Occlusion (SSAO)");
+				ImGui::Checkbox("Enabled", &mSSAOEnabled);
+				ImGui::Separator();
 				
 				ImGui::DragFloat3("Scale", glm::value_ptr(mScale), 0.005f, 0.01f, 10.0f);
 				ImGui::Checkbox("Enable/Disable invokee", &isEnabled);
@@ -540,6 +554,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		dofData.mFocusRange = mDoFFocusRange;
 		dofData.mDistOutOfFocus = mDoFDistanceOutOfFocus;
 		auto dofCmd = mDoFBuffer->fill(&dofData, 0);
+
+		SSAOData ssaoData;
+		ssaoData.mEnabled = static_cast<int>(mSSAOEnabled);
+		auto ssaoCmd = mSSAOBuffer->fill(&ssaoData, 0);
 	}
 
 	void render() override
@@ -644,9 +662,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::command::render_pass(mPipelineScreenspace->renderpass_reference(), avk::context().main_window()->current_backbuffer_reference(), avk::command::gather(
 					avk::command::bind_pipeline(mPipelineScreenspace.as_reference()),
 						avk::command::bind_descriptors(mPipelineScreenspace->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-							avk::descriptor_binding(0, 0, mImageSamplerScreenspaceColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-							avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_attachment_optimal)),
-							avk::descriptor_binding(0, 2, mDoFBuffer)
+							avk::descriptor_binding(0, 0, mImageSamplerScreenspaceColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+							avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
+							avk::descriptor_binding(0, 2, mDoFBuffer),
+							avk::descriptor_binding(0, 3, mSSAOBuffer)
 						})),
 						avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 				)),
@@ -793,6 +812,7 @@ private: // v== Member variables ==v
 	avk::framebuffer mOneFramebuffer;
 	avk::graphics_pipeline mPipelineScreenspace;
 	avk::buffer mDoFBuffer;
+	avk::buffer mSSAOBuffer;
 	avk::buffer mVertexBufferScreenspace;
 	avk::buffer mIndexBufferScreenspace;
 	avk::image_sampler mImageSamplerScreenspaceColor;
@@ -819,6 +839,9 @@ private: // v== Member variables ==v
 	float mDoFDistanceOutOfFocus = 0.1f;
 	int mDoFEnabled = 1;
 	std::string mDoFMode = "gaussian";
+
+	// SSAO data
+	bool mSSAOEnabled = true;
 
 	const float mScaleSkybox = 100.f;
 	const glm::mat4 mModelMatrixSkybox = glm::scale(glm::vec3(mScaleSkybox));
@@ -860,6 +883,10 @@ int main() // <== Starting point ==
 			avk::application_name("Auto-Vk-Toolkit Example: Model Loader"),
 			[](avk::validation_layers& config) {
 				config.enable_feature(vk::ValidationFeatureEnableEXT::eSynchronizationValidation);
+			},
+			// Vulkan Device Features 1.2
+			[](vk::PhysicalDeviceVulkan12Features& features) {
+				features.setSeparateDepthStencilLayouts(VK_TRUE);
 			},
 			// Pass windows:
 			mainWnd,

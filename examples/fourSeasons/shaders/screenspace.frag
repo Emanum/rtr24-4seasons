@@ -15,6 +15,11 @@ layout(set = 0, binding = 2) uniform uniformDoF
     float distOutOfFocus;
 } DoF;
 
+layout(set = 0, binding = 3) uniform uniformSSAO
+{
+    int enabled;
+} SSAO;
+
 // Gaussian kernel
 const float kernel[9] = float[](0.027, 0.065, 0.121, 0.194, 0.227, 0.194, 0.121, 0.065, 0.027);
 
