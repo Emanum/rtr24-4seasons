@@ -13,6 +13,8 @@ layout(set = 0, binding = 2) uniform uniformDoF
     float focus;
     float range;
     float distOutOfFocus;
+    float nearPlane;
+    float farPlane;
 } DoF;
 
 layout(set = 0, binding = 3) uniform uniformSSAO
@@ -43,6 +45,7 @@ void main() {
         //But the jump between the groups should be smooth so we use the distOutOfFocus to make the transition smooth
         
         float depth = texture(depthTexture, texCoord).r;
+        //In theory we should linearize the depth value becase the depth value is not linear 
 
         float mdistOutOfFocus = DoF.distOutOfFocus;
         float mrange = DoF.range;
@@ -53,6 +56,7 @@ void main() {
         float upperBoundTotalOoF = min(DoF.focus + mrange + mdistOutOfFocus,1);
 
         vec3 depthVis = vec3(0.0);
+        //  TotalOoF<lowerBoundCenter>Center<upperBoundCenter>TotalOoF
         if(depth <= lowerBoundCenter)
         {
             //mix between foreground and center
@@ -62,7 +66,7 @@ void main() {
         {
             //center -> complete in focus
             depthVis = centerColor;
-        } else if(depth <= upperBoundTotalOoF)
+        } else
         {
             //mix between center and background
             float test = (depth - upperBoundCenter) / (upperBoundCenter - upperBoundTotalOoF);
