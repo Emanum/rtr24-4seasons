@@ -13,6 +13,13 @@
 #include "camera_path_recorder.hpp"
 #include "math_utils.hpp"
 
+#include <random>
+
+namespace g_ssao {
+	constexpr size_t kernelSize = 64;
+	constexpr size_t noiseSize = 16;
+}
+
 class model_loader_app : public avk::invokee
 {
 	
@@ -57,6 +64,9 @@ class model_loader_app : public avk::invokee
 	struct SSAOData {
 		int mEnabled = 0;
 	};
+
+	std::vector<glm::vec3> mSSAOKernel;
+	std::vector<glm::vec3> mSSAONoise;
 
 	const std::vector<glm::vec2> mScreenspaceQuadVertexData = {
 		{-1.0f, -1.0f},
@@ -148,7 +158,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	void init_scene()
 	{
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/Environment.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/simpleScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -245,6 +255,45 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			);
 		}
 	}
+
+
+	void init_ssao_kernels()
+	{
+		std::uniform_real_distribution<float> range(0.0, 1.0);
+		std::mt19937 randomEngine;
+		mSSAOKernel.reserve(g_ssao::kernelSize);
+		// Generate samples in a hemisphere
+		for (size_t i = 0; i < g_ssao::kernelSize; i++) {
+			glm::vec3 sample(
+				range(randomEngine) * 2.0 - 1.0,
+				range(randomEngine) * 2.0 - 1.0,
+				range(randomEngine)
+			);
+			sample = glm::normalize(sample);
+			sample *= range(randomEngine);
+
+			// Scale so samples are distributed closer to the origin of the hemisphere
+			float scale = (float)i / g_ssao::kernelSize;
+			// lerp
+			scale = 0.1 + scale*scale * (1.0 - 0.1);
+			sample *= scale;
+
+			mSSAOKernel.push_back(sample);
+		}
+
+		// Create a rotation vectors for the noise texture
+		mSSAONoise.reserve(g_ssao::noiseSize);
+		for (size_t i = 0; i < g_ssao::noiseSize; i++) {
+			glm::vec3 noise(
+				range(randomEngine) * 2.0 - 1.0,
+				range(randomEngine) * 2.0 - 1.0,
+				// We want to rotate around the z axis (up)
+				0.0f
+			);
+
+			mSSAONoise.push_back(noise);
+		}
+	}
 	
 
 	void initialize() override
@@ -289,6 +338,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::memory_usage::host_coherent, {},
 			avk::uniform_buffer_meta::create_from_data(SSAOData())
 		);
+
+		init_ssao_kernels();
 		
 		//Create Vertex Buffer for Screenspace Quad
 		{
