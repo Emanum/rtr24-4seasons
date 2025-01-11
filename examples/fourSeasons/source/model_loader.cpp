@@ -60,7 +60,10 @@ class model_loader_app : public avk::invokee
 		float mDistOutOfFocus = 3.0f; //how much from the start of the out of focus area until the image is completely out of focus
 		float mNearPlane = 0.0f;
 		float mFarPlane = 0.0f;
+		std::vector<glm::vec2> mBokehKernel = mBokehKernel;
 	};
+
+	std::vector<glm::vec2> mBokehKernel;
 
 	//for SSAO
 	struct SSAOData {
@@ -160,7 +163,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	void init_scene()
 	{
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/simpleScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/fullScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -296,6 +299,64 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			mSSAONoise.push_back(noise);
 		}
 	}
+
+	void init_bokeh_kernel()
+	{
+		// Circular Kernel from GPU Zen 'Practical Gather-based Bokeh Depth of Field' by Wojciech Sterna
+		 auto kernel = {
+		 	glm::vec2(1.000000f, 0.000000f) * 2.0f,
+			glm::vec2(0.707107f, 0.707107f) * 2.0f,
+			glm::vec2(-0.000000f, 1.000000f) * 2.0f,
+			glm::vec2(-0.707107f, 0.707107f) * 2.0f,
+			glm::vec2(-1.000000f, -0.000000f) * 2.0f,
+			glm::vec2(-0.707106f, -0.707107f) * 2.0f,
+			glm::vec2(0.000000f, -1.000000f) * 2.0f,
+			glm::vec2(0.707107f, -0.707107f) * 2.0f,
+
+			glm::vec2(1.000000f, 0.000000f) * 4.0f,
+			glm::vec2(0.923880f, 0.382683f) * 4.0f,
+			glm::vec2(0.707107f, 0.707107f) * 4.0f,
+			glm::vec2(0.382683f, 0.923880f) * 4.0f,
+			glm::vec2(-0.000000f, 1.000000f) * 4.0f,
+			glm::vec2(-0.382684f, 0.923879f) * 4.0f,
+			glm::vec2(-0.707107f, 0.707107f) * 4.0f,
+			glm::vec2(-0.923880f, 0.382683f) * 4.0f,
+			glm::vec2(-1.000000f, -0.000000f) * 4.0f,
+			glm::vec2(-0.923879f, -0.382684f) * 4.0f,
+			glm::vec2(-0.707106f, -0.707107f) * 4.0f,
+			glm::vec2(-0.382683f, -0.923880f) * 4.0f,
+			glm::vec2(0.000000f, -1.000000f) * 4.0f,
+			glm::vec2(0.382684f, -0.923879f) * 4.0f,
+			glm::vec2(0.707107f, -0.707107f) * 4.0f,
+			glm::vec2(0.923880f, -0.382683f) * 4.0f,
+
+			glm::vec2(1.000000f, 0.000000f) * 6.0f,
+			glm::vec2(0.965926f, 0.258819f) * 6.0f,
+			glm::vec2(0.866025f, 0.500000f) * 6.0f,
+			glm::vec2(0.707107f, 0.707107f) * 6.0f,
+			glm::vec2(0.500000f, 0.866026f) * 6.0f,
+			glm::vec2(0.258819f, 0.965926f) * 6.0f,
+			glm::vec2(-0.000000f, 1.000000f) * 6.0f,
+			glm::vec2(-0.258819f, 0.965926f) * 6.0f,
+			glm::vec2(-0.500000f, 0.866025f) * 6.0f,
+			glm::vec2(-0.707107f, 0.707107f) * 6.0f,
+			glm::vec2(-0.866026f, 0.500000f) * 6.0f,
+			glm::vec2(-0.965926f, 0.258819f) * 6.0f,
+			glm::vec2(-1.000000f, -0.000000f) * 6.0f,
+			glm::vec2(-0.965926f, -0.258820f) * 6.0f,
+			glm::vec2(-0.866025f, -0.500000f) * 6.0f,
+			glm::vec2(-0.707106f, -0.707107f) * 6.0f,
+			glm::vec2(-0.499999f, -0.866026f) * 6.0f,
+			glm::vec2(-0.258819f, -0.965926f) * 6.0f,
+			glm::vec2(0.000000f, -1.000000f) * 6.0f,
+			glm::vec2(0.258819f, -0.965926f) * 6.0f,
+			glm::vec2(0.500000f, -0.866025f) * 6.0f,
+			glm::vec2(0.707107f, -0.707107f) * 6.0f,
+			glm::vec2(0.866026f, -0.499999f) * 6.0f,
+			glm::vec2(0.965926f, -0.258818f) * 6.0f
+		};
+		mBokehKernel = kernel;
+	}
 	
 
 	void initialize() override
@@ -342,6 +403,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		);
 
 		init_ssao_kernels();
+		init_bokeh_kernel();
 		
 		//Create Vertex Buffer for Screenspace Quad
 		{
@@ -608,6 +670,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		dofData.mDistOutOfFocus = mDoFDistanceOutOfFocus;
 		dofData.mNearPlane = mQuakeCam.near_plane_distance();// we assume both camera have the same near and far plane
 		dofData.mFarPlane = mQuakeCam.far_plane_distance();
+		dofData.mBokehKernel = mBokehKernel;
 		auto dofCmd = mDoFBuffer->fill(&dofData, 0);
 
 		SSAOData ssaoData;

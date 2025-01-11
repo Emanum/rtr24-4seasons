@@ -15,6 +15,7 @@ layout(set = 0, binding = 2) uniform uniformDoF
     float distOutOfFocus;
     float nearPlane;
     float farPlane;
+    vec2[49] bokehKernel;
 } DoF;
 
 layout(set = 0, binding = 3) uniform uniformSSAO
@@ -79,15 +80,19 @@ void main() {
         
         //now we have the outOfFocusAmount we can blur the screen texture using gaussian blur
         //0-> no blur, 1-> full blur
-        float blurAmount = pow(outOfFocusAmount, blurPower) -1.0;
+        float blurAmount = pow(outOfFocusAmount, blurPower);
         
         vec4 ogColor = texture(screenTexture, texCoord);
         vec4 blurColor = vec4(0.0);
-        for(int i = 0; i < 9; i++)
+        //we sample on each bokeh kernel point; sum it up and then divide it by the sum of the kernel
+        //bokeh kernel has 49 points
+        //each sample point is a vec2 with x and y value offset in pixel
+        for (int i = 0; i < 49; i++)
         {
-            vec2 offset = vec2(float(i%3) - 1.0, float(i/3) - 1.0);
-            blurColor += texture(screenTexture, texCoord + offset / textureSize(screenTexture, 0)) * kernel[i];
+            blurColor += texture(screenTexture, texCoord + DoF.bokehKernel[i]);
         }
+        blurColor /= 49.0;
+        
         
         if (DoF.mode == 0)
         {
@@ -95,8 +100,9 @@ void main() {
             fs_out = vec4(depthVis, 1.0);
         }else if(DoF.mode == 1 || DoF.mode == 2)
         {
-            //gaussian
-            fs_out = mix(ogColor, blurColor, blurAmount);
+            //bokeh
+//            fs_out = mix(ogColor, blurColor, blurAmount);
+            fs_out = mix(ogColor, blurColor, outOfFocusAmount);
         }
 
     }else{
