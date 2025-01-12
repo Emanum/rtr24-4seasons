@@ -22,9 +22,10 @@ layout (set = 0, binding = 5) uniform uniformDoF
 
 layout(set = 1, binding = 0) buffer UniformBufferObject
 {
-    vec3[49] gaussianKernel;
-    vec2[48] bokehKernel;
+    vec4 gaussianKernel[49];
+    vec4 bokehKernel[48];
 } kernel;
+
 
 void main() {
     if (DoF.enabled == 1)

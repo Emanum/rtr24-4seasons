@@ -69,8 +69,12 @@ class model_loader_app : public avk::invokee
 
 	struct DoFKernelBufferStruct
 	{
-		std::vector<glm::vec3> gaussianKernel;
-		std::vector<glm::vec2> bokehKernel;
+		// Using std::vector<glm::vec3> on the CPU is convenient, but it can cause issues when interfacing with Vulkan .
+		// due to alignment and padding differences. Specifically, glm::vec3 does not include the padding required by
+		// Vulkan's alignment rules (16 bytes for vec3), so you'll end up with mismatched data.
+		// -> We use glm::vec4 instead, which is 16 bytes aligned.
+		std::vector<glm::vec4> gaussianKernel;
+		std::vector<glm::vec4> bokehKernel;
 	};
 
 	DoFKernelBufferStruct mDoFKernelBufferStruct;
@@ -312,10 +316,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		}
 	}
 
-	std::vector<glm::vec2> init_bokeh_kernel()
+	std::vector<glm::vec4> init_bokeh_kernel()
 	{
 		// Circular Kernel from GPU Zen 'Practical Gather-based Bokeh Depth of Field' by Wojciech Sterna
-		 return {
+		 auto kernel = {
 		 	glm::vec2(1.000000f, 0.000000f) * 2.0f,
 			glm::vec2(0.707107f, 0.707107f) * 2.0f,
 			glm::vec2(-0.000000f, 1.000000f) * 2.0f,
@@ -367,12 +371,18 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			glm::vec2(0.866026f, -0.499999f) * 6.0f,
 			glm::vec2(0.965926f, -0.258818f) * 6.0f
 		};
+		//convert each vec2 to an vec4 with 1 and 1 as z and w
+		std::vector<glm::vec4> kernel2;
+		for (auto& k : kernel) {
+			kernel2.emplace_back(k.x, k.y, 1, 1);
+		}
+		return kernel2;
 	}
 
-	std::vector<glm::vec3> init_gaussian_kernel(int aSize)
+	std::vector<glm::vec4> init_gaussian_kernel(int aSize)
 	{
 		//x and y are the coordinates of the kernel, z is the weight
-		std::vector<glm::vec3> kernel;
+		std::vector<glm::vec4> kernel;
 		// Generate a 2D Gaussian kernel
 		float sigma = 1.0f;
 		float twoSigma2 = 2.0f * sigma * sigma;
@@ -382,7 +392,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				float r = sqrt(x * x + y * y);
 				float weight = (glm::exp(-(r * r) / twoSigma2)) / (glm::pi<float>() * twoSigma2);
 				weightSum += weight;
-				kernel.emplace_back(x, y, weight);
+				kernel.emplace_back(x, y, weight, 1);
 			}
 		}
 		// Normalize the kernel
@@ -489,10 +499,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		// matFence->wait_until_signalled();
 		
 		mDoFKernelBufferStruct = { .gaussianKernel= init_gaussian_kernel(3), .bokehKernel= init_bokeh_kernel() };
+		//try zero initialization isntead
+		mDoFKernelBufferStruct = {.gaussianKernel = std::vector<glm::vec4>(49, glm::vec4(0)), .bokehKernel = std::vector<glm::vec4>(48, glm::vec4(0))};
 		//calculate the size of the buffer
-		size_t bufferSize = mDoFKernelBufferStruct.gaussianKernel.size() * sizeof(glm::vec3) + mDoFKernelBufferStruct.bokehKernel.size() * sizeof(glm::vec2);
+		size_t bufferSize = mDoFKernelBufferStruct.gaussianKernel.size() * sizeof(glm::vec4) + mDoFKernelBufferStruct.bokehKernel.size() * sizeof(glm::vec4);
 		mDoFKernelBuffer = avk::context().create_buffer(
-			avk::memory_usage::device, {},
+			avk::memory_usage::host_coherent, {},
 			avk::storage_buffer_meta::create_from_size(bufferSize)
 		);
 		// Submit the Vertex Buffer fill command to the device:
@@ -874,6 +886,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		SSAOData ssaoData;
 		ssaoData.mEnabled = static_cast<int>(mSSAOEnabled);
 		auto ssaoCmd = mSSAOBuffer->fill(&ssaoData, 0);
+
+		auto emptyToo2 = mDoFKernelBuffer->fill(&mDoFKernelBufferStruct, 0);
 	}
 
 	void render() override
