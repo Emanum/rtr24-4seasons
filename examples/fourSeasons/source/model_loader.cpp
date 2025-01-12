@@ -15,6 +15,11 @@
 
 #include <random>
 
+#include "auto_vk_toolkit.hpp"
+#include "auto_vk_toolkit.hpp"
+#include "auto_vk_toolkit.hpp"
+#include "auto_vk_toolkit.hpp"
+
 namespace g_ssao {
 	constexpr size_t kernelSize = 64;
 	constexpr size_t noiseSize = 16;
@@ -54,18 +59,26 @@ class model_loader_app : public avk::invokee
 	//for DoF
 	struct DoFData {
 		int mEnabled = 0;
-		int mMode; //0 = depth, 1 = gaussian, 2 = bokeh
+		int mMode;
 		float mFocus = 3.0f; //at what distance the focus is
 		float mFocusRange = 1.5f; //how far the focus reaches (in both directions), i.e. the range of sharpness
 		float mDistOutOfFocus = 3.0f; //how much from the start of the out of focus area until the image is completely out of focus
 		float mNearPlane = 0.0f;
 		float mFarPlane = 0.0f;
-		std::vector<glm::vec2> mBokehKernel = mBokehKernel;
-		std::vector<glm::vec2> mGaussianKernel = mGaussianKernel;
 	};
 
-	std::vector<glm::vec2> mBokehKernel;
-	std::vector<glm::vec2> mGaussianKernel;
+	struct DoFKernelBufferStruct
+	{
+		std::vector<glm::vec3> gaussianKernel;
+		std::vector<glm::vec2> bokehKernel;
+	};
+	
+	std::vector<glm::vec2> mDofBokehKernel;
+	std::vector<glm::vec3> mDofGaussianKernel;
+
+	DoFKernelBufferStruct mDoFKernelBufferStruct;
+
+
 	
 	//for SSAO
 	struct SSAOData {
@@ -165,7 +178,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	void init_scene()
 	{
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/SimpleScene3.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/SimpleScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -302,10 +315,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		}
 	}
 
-	void init_bokeh_kernel()
+	std::vector<glm::vec2> init_bokeh_kernel()
 	{
 		// Circular Kernel from GPU Zen 'Practical Gather-based Bokeh Depth of Field' by Wojciech Sterna
-		 auto kernel = {
+		 return {
 		 	glm::vec2(1.000000f, 0.000000f) * 2.0f,
 			glm::vec2(0.707107f, 0.707107f) * 2.0f,
 			glm::vec2(-0.000000f, 1.000000f) * 2.0f,
@@ -357,21 +370,29 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			glm::vec2(0.866026f, -0.499999f) * 6.0f,
 			glm::vec2(0.965926f, -0.258818f) * 6.0f
 		};
-		mBokehKernel = kernel;
 	}
 
-	void init_gaussian_kernel()
+	std::vector<glm::vec3> init_gaussian_kernel(int aSize)
 	{
-		//7x7 Gaussian kernel
-		auto kernel = {
-			glm::vec2(0.00000067f, 0.00002292f), glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.01110899f, 0.13533528f), glm::vec2(0.01110899f, 0.13533528f), glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.00000067f, 0.00002292f),
-			glm::vec2(0.00002292f, 0.00078904f), glm::vec2(0.00673795f, 0.20189652f), glm::vec2(0.36787944f, 1.00000000f), glm::vec2(0.36787944f, 1.00000000f), glm::vec2(0.00673795f, 0.20189652f), glm::vec2(0.00002292f, 0.00078904f),
-			glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.13533528f, 0.36787944f), glm::vec2(1.00000000f, 2.71828183f), glm::vec2(1.00000000f, 2.71828183f), glm::vec2(0.13533528f, 0.36787944f), glm::vec2(0.00019117f, 0.00597704f),
-			glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.13533528f, 0.36787944f), glm::vec2(1.00000000f, 2.71828183f), glm::vec2(1.00000000f, 2.71828183f), glm::vec2(0.13533528f, 0.36787944f), glm::vec2(0.00019117f, 0.00597704f),
-			glm::vec2(0.00002292f, 0.00078904f), glm::vec2(0.00673795f, 0.20189652f), glm::vec2(0.36787944f, 1.00000000f), glm::vec2(0.36787944f, 1.00000000f), glm::vec2(0.00673795f, 0.20189652f), glm::vec2(0.00002292f, 0.00078904f),
-			glm::vec2(0.00000067f, 0.00002292f), glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.01110899f, 0.13533528f), glm::vec2(0.01110899f, 0.13533528f), glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.00000067f, 0.00002292f)
-		};
-		mGaussianKernel = kernel;
+		//x and y are the coordinates of the kernel, z is the weight
+		std::vector<glm::vec3> kernel;
+		// Generate a 2D Gaussian kernel
+		float sigma = 1.0f;
+		float twoSigma2 = 2.0f * sigma * sigma;
+		float weightSum = 0.0f;
+		for (int x = -aSize; x <= aSize; x++) {
+			for (int y = -aSize; y <= aSize; y++) {
+				float r = sqrt(x * x + y * y);
+				float weight = (glm::exp(-(r * r) / twoSigma2)) / (glm::pi<float>() * twoSigma2);
+				weightSum += weight;
+				kernel.emplace_back(x, y, weight);
+			}
+		}
+		// Normalize the kernel
+		for (auto& k : kernel) {
+			k.z /= weightSum;
+		}
+		return kernel;
 	}
 	
 
@@ -456,8 +477,34 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		);
 
 		init_ssao_kernels();
-		init_bokeh_kernel();
-		init_gaussian_kernel();
+
+		// A buffer to hold all the material data:
+		// mMaterialBuffer = avk::context().create_buffer(
+		// 	avk::memory_usage::device, {},
+		// 	avk::storage_buffer_meta::create_from_data(gpuMaterials)
+		// );
+		//
+		// // Submit the commands material commands and the materials buffer fill to the device:
+		// auto matFence = avk::context().record_and_submit_with_fence({
+		// 	std::move(materialCommands),
+		// 	mMaterialBuffer->fill(gpuMaterials.data(), 0)
+		// }, *mQueue);
+		// matFence->wait_until_signalled();
+		
+		mDoFKernelBufferStruct = { .gaussianKernel= init_gaussian_kernel(3), .bokehKernel= init_bokeh_kernel() };
+		//calculate the size of the buffer
+		size_t bufferSize = mDoFKernelBufferStruct.gaussianKernel.size() * sizeof(glm::vec3) + mDoFKernelBufferStruct.bokehKernel.size() * sizeof(glm::vec2);
+		mDoFKernelBuffer = avk::context().create_buffer(
+			avk::memory_usage::device, {},
+			avk::storage_buffer_meta::create_from_size(bufferSize)
+		);
+		// Submit the Vertex Buffer fill command to the device:
+		auto fence = avk::context().record_and_submit_with_fence({
+			mDoFKernelBuffer->fill(&mDoFKernelBufferStruct, 0)
+		}, *mQueue);
+		// Wait on the host until the device is done:
+		fence->wait_until_signalled();
+		
 		
 		//Create Vertex Buffer for Screenspace Quad
 		{
@@ -659,7 +706,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(0, 2, mImageSamplerDofCenterColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 3, mImageSamplerDofFarColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
-			avk::descriptor_binding(0, 5, mDoFBuffer)
+			avk::descriptor_binding(0, 5, mDoFBuffer),
+			avk::descriptor_binding(1, 0, mDoFKernelBuffer)
 		);
 
 		
@@ -824,10 +872,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		dofData.mDistOutOfFocus = mDoFDistanceOutOfFocus;
 		dofData.mNearPlane = mQuakeCam.near_plane_distance();// we assume both camera have the same near and far plane
 		dofData.mFarPlane = mQuakeCam.far_plane_distance();
-		dofData.mBokehKernel = mBokehKernel;
-		dofData.mGaussianKernel = mGaussianKernel;
 		auto dofCmd = mDoFBuffer->fill(&dofData, 0);
-
+		
 		SSAOData ssaoData;
 		ssaoData.mEnabled = static_cast<int>(mSSAOEnabled);
 		auto ssaoCmd = mSSAOBuffer->fill(&ssaoData, 0);
@@ -1009,7 +1055,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					avk::descriptor_binding(0, 2, mImageSamplerDofCenterColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 3, mImageSamplerDofFarColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 5, mDoFBuffer)
+					avk::descriptor_binding(0, 5, mDoFBuffer),
+					avk::descriptor_binding(1, 0, mDoFKernelBuffer)
 				})),
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			)),
@@ -1189,6 +1236,7 @@ private: // v== Member variables ==v
 	avk::graphics_pipeline mPipelineDofFinal;//renders directly to the screen
 	
 	avk::buffer mDoFBuffer;
+	avk::buffer mDoFKernelBuffer;
 
 	//general screenspace quad
 	avk::buffer mVertexBufferScreenspace;

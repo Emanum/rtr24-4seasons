@@ -16,7 +16,7 @@ layout (set = 0, binding = 2) uniform uniformDoF
     float nearPlane;
     float farPlane;
     vec2[49] bokehKernel;
-    vec2[36] gaussianKernel;
+    vec3[49] gaussianKernel;
 } DoF;
 
 void main() {
