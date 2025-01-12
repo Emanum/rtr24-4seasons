@@ -5,10 +5,10 @@ layout(location = 0) out vec4 fs_out;
 
 layout(set = 0, binding = 0) uniform sampler2D ssaoTexture;
 layout(set = 0, binding = 1) uniform sampler2D nearTexture;
-layout(set = 0, binding = 2) uniform sampler2D farTexture;
-layout(set = 0, binding = 3) uniform sampler2D depthTexture;
-
-layout(set = 0, binding = 4) uniform uniformDoF
+layout(set = 0, binding = 2) uniform sampler2D centerTexture;
+layout(set = 0, binding = 3) uniform sampler2D farTexture;
+layout(set = 0, binding = 4) uniform sampler2D depthTexture;
+layout(set = 0, binding = 5) uniform uniformDoF
 {
     int enabled;
     int mode;//0-> depth, 1-> gaussian, 2-> bokeh
@@ -53,8 +53,9 @@ void main() {
 //            nearBlur = nearBlur / 9.0;
             
             vec4 farTextureVal = texture(farTexture, texCoord);
+            vec4 centerTextureVal = texture(centerTexture, texCoord);
 
-            fs_out = nearBlur + farTextureVal;
+            fs_out = nearBlur + centerTextureVal + farTextureVal;
             
 //            vec4 ogColor = texture(ssaoTexture, texCoord);
 //            //bokeh

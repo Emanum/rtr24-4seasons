@@ -56,6 +56,12 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\dof3.vert">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\dofCenter.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\dofCenter.vert">
+      <Filter>shaders</Filter>
+    </None>
     <None Include="..\..\..\examples\fourSeasons\shaders\ssao.frag">
       <Filter>shaders</Filter>
     </None>

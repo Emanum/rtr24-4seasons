@@ -31,6 +31,8 @@
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof2.vert" />
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof3.frag" />
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof3.vert" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dofCenter.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dofCenter.vert" />
     <ClInclude Include="..\..\..\examples\fourSeasons\source\camera_path.hpp" />
     <ClInclude Include="..\..\..\examples\fourSeasons\source\camera_path_recorder.hpp" />
     <ClInclude Include="..\..\..\examples\fourSeasons\source\ui_helper.hpp" />
