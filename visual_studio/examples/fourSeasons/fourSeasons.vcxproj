@@ -27,6 +27,10 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\a_triangle.vert" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof2.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof2.vert" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof3.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof3.vert" />
     <ClInclude Include="..\..\..\examples\fourSeasons\source\camera_path.hpp" />
     <ClInclude Include="..\..\..\examples\fourSeasons\source\camera_path_recorder.hpp" />
     <ClInclude Include="..\..\..\examples\fourSeasons\source\ui_helper.hpp" />
@@ -43,11 +47,15 @@
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\transform_and_pass_pos_nrm_uv.vert" />
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\skybox.vert" />
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\skybox.frag" />
-    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\screenspace.frag" />
-    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\screenspace.vert" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof1.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof1.vert" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="..\..\..\examples\fourSeasons\resources\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\..\examples\fourSeasons\shaders\ssao.frag" />
+    <Content Include="..\..\..\examples\fourSeasons\shaders\ssao.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

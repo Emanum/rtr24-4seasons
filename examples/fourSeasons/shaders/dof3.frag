@@ -3,10 +3,12 @@
 layout(location = 0) in vec2 texCoord;
 layout(location = 0) out vec4 fs_out;
 
-layout(set = 0, binding = 0) uniform sampler2D screenTexture;
-layout(set = 0, binding = 1) uniform sampler2D depthTexture;
+layout(set = 0, binding = 0) uniform sampler2D ssaoTexture;
+layout(set = 0, binding = 1) uniform sampler2D nearTexture;
+layout(set = 0, binding = 2) uniform sampler2D farTexture;
+layout(set = 0, binding = 3) uniform sampler2D depthTexture;
 
-layout(set = 0, binding = 2) uniform uniformDoF
+layout(set = 0, binding = 4) uniform uniformDoF
 {
     int enabled;
     int mode;//0-> depth, 1-> gaussian, 2-> bokeh
@@ -17,11 +19,6 @@ layout(set = 0, binding = 2) uniform uniformDoF
     float farPlane;
     vec2[49] bokehKernel;
 } DoF;
-
-layout(set = 0, binding = 3) uniform uniformSSAO
-{
-    int enabled;
-} SSAO;
 
 // Gaussian kernel
 const float kernel[9] = float[](0.027, 0.065, 0.121, 0.194, 0.227, 0.194, 0.121, 0.065, 0.027);
@@ -82,14 +79,14 @@ void main() {
         //0-> no blur, 1-> full blur
         float blurAmount = pow(outOfFocusAmount, blurPower);
         
-        vec4 ogColor = texture(screenTexture, texCoord);
+        vec4 ogColor = texture(ssaoTexture, texCoord);
         vec4 blurColor = vec4(0.0);
         //we sample on each bokeh kernel point; sum it up and then divide it by the sum of the kernel
         //bokeh kernel has 49 points
         //each sample point is a vec2 with x and y value offset in pixel
         for (int i = 0; i < 49; i++)
         {
-            blurColor += texture(screenTexture, texCoord + DoF.bokehKernel[i]);
+            blurColor += texture(ssaoTexture, texCoord + DoF.bokehKernel[i]);
         }
         blurColor /= 49.0;
         
@@ -106,7 +103,7 @@ void main() {
         }
 
     }else{
-        fs_out = texture(screenTexture, texCoord);
+        fs_out = texture(ssaoTexture, texCoord);
     }
 
         

@@ -38,10 +38,28 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\skybox.frag">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\screenspace.frag">
+    <None Include="..\..\..\examples\fourSeasons\shaders\dof1.frag">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\screenspace.vert">
+    <None Include="..\..\..\examples\fourSeasons\shaders\dof1.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\dof2.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\dof2.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\dof3.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\dof3.vert">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\ssao.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\ssao.vert">
       <Filter>shaders</Filter>
     </None>
     <None Include="..\..\..\rtr24-4seasons-assets\skybox\cube.obj">

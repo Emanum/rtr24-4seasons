@@ -163,7 +163,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	void init_scene()
 	{
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/fullScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/simpleScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -383,13 +383,32 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto colorAttachmentDescription = avk::attachment::declare_for(colorAttachment.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
 		auto depthAttachmentDescription = avk::attachment::declare_for(depthAttachment.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::depth_stencil_attachment_optimal), avk::usage::depth_stencil, avk::on_store::store);
 
-		mOneFramebuffer = avk::context().create_framebuffer(
+		mRasterizerFramebuffer = avk::context().create_framebuffer(
 			{ colorAttachmentDescription, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
 			avk::make_vector( colorAttachment, depthAttachment )
 		);
 		auto sampler = avk::context().create_sampler(avk::filter_mode::trilinear, avk::border_handling_mode::clamp_to_edge, 0);
-		mImageSamplerScreenspaceColor = avk::context().create_image_sampler(mOneFramebuffer->image_view_at(0), sampler);
-		mImageSamplerScreenspaceDepth = avk::context().create_image_sampler(mOneFramebuffer->image_view_at(1), sampler);
+		mImageSamplerRasterFBColor = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(0), sampler);
+		mImageSamplerRasterFBDepth = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(1), sampler);
+
+		mSSAOFramebuffer = avk::context().create_framebuffer(
+			{ colorAttachmentDescription }, 
+			avk::make_vector(colorAttachment)
+		);
+		mImageSamplerSsaoFBColor = avk::context().create_image_sampler(mSSAOFramebuffer->image_view_at(0), sampler);
+
+		mDofNearFieldFB = avk::context().create_framebuffer(
+			{ colorAttachmentDescription },
+			avk::make_vector(colorAttachment)
+		);
+		mImageSamplerDofNearColor = avk::context().create_image_sampler(mDofNearFieldFB->image_view_at(0), sampler);
+
+		mDofFarFieldFB = avk::context().create_framebuffer(
+			{ colorAttachmentDescription },
+			avk::make_vector(colorAttachment)
+		);
+		mImageSamplerDofFarColor = avk::context().create_image_sampler(mDofFarFieldFB->image_view_at(0), sampler);
+		
 		
 		//Create Buffer for DoF effect
 		mDoFBuffer = avk::context().create_buffer(
@@ -440,7 +459,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::from_buffer_binding(0)->stream_per_vertex<glm::vec3>()->to_location(0), // <-- corresponds to vertex shader's inPosition
 			// Some further settings:
 			avk::cfg::front_face::define_front_faces_to_be_counter_clockwise(),
-			avk::cfg::viewport_depth_scissors_config::from_framebuffer(mOneFramebuffer.as_reference()),
+			avk::cfg::viewport_depth_scissors_config::from_framebuffer(mRasterizerFramebuffer.as_reference()),
 			// We'll render to the framebuffer, only color no depth needed cause skybox is always at infinity
 			// mColorAttachmentDescription,
 			avk::context().create_renderpass(
@@ -467,7 +486,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::from_buffer_binding(2) -> stream_per_vertex<glm::vec3>() -> to_location(2), // <-- corresponds to vertex shader's inNormal
 			// Some further settings:
 			avk::cfg::front_face::define_front_faces_to_be_counter_clockwise(),
-			avk::cfg::viewport_depth_scissors_config::from_framebuffer(mOneFramebuffer.as_reference()), // Align viewport with framebuffer resolution
+			avk::cfg::viewport_depth_scissors_config::from_framebuffer(mRasterizerFramebuffer.as_reference()), // Align viewport with framebuffer resolution
 			
 			// We'll render to the framebuffer
 			avk::context().create_renderpass(
@@ -485,15 +504,83 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(1, 0, mMaterialBuffer)
 		);
 
-		//Pipeline for Screenspace Effects (DoF)
+		//Pipeline for Screenspace Effects (DoF) 
 		//Basically we just need to render a quad with the texture of the result of the previous pipeline and apply the DoF effect
 		//In addition we also need to pass the depth buffer to the pipeline from the previous pipeline
-		
-		
-		mPipelineScreenspace = avk::context().create_graphics_pipeline_for(
+		mPipelineSSAO = avk::context().create_graphics_pipeline_for(
 			// Specify which shaders the pipeline consists of:
-			avk::vertex_shader("shaders/screenspace.vert"),
-			avk::fragment_shader("shaders/screenspace.frag"),
+			avk::vertex_shader("shaders/ssao.vert"),
+			avk::fragment_shader("shaders/ssao.frag"),
+			
+			avk::from_buffer_binding(0) -> stream_per_vertex<glm::vec2>() -> to_location(0), // <-- corresponds to vertex shader's inPosition
+
+			// Some further settings:
+			avk::cfg::front_face::define_front_faces_to_be_clockwise(),
+			avk::cfg::viewport_depth_scissors_config::from_framebuffer(mSSAOFramebuffer.as_reference()),
+
+			// We'll render to the framebuffer
+			avk::context().create_renderpass(
+			{
+				colorAttachmentDescription
+			}),
+			
+			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
+			avk::descriptor_binding(0, 0, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 2, mSSAOBuffer)
+		);
+
+		mPipelineDofNear = avk::context().create_graphics_pipeline_for(
+			// Specify which shaders the pipeline consists of:
+			avk::vertex_shader("shaders/dof1.vert"),
+			avk::fragment_shader("shaders/dof1.frag"),
+					
+			avk::from_buffer_binding(0) -> stream_per_vertex<glm::vec2>() -> to_location(0), // <-- corresponds to vertex shader's inPosition
+
+			// Some further settings:
+			avk::cfg::front_face::define_front_faces_to_be_clockwise(),
+			avk::cfg::viewport_depth_scissors_config::from_framebuffer(mDofNearFieldFB.as_reference()),
+
+			// We'll render to the framebuffer
+			avk::context().create_renderpass(
+			{
+				colorAttachmentDescription
+			}),
+					
+			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
+			avk::descriptor_binding(0, 0, mImageSamplerSsaoFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 2, mDoFBuffer)
+		);
+
+		mPipelineDofFar = avk::context().create_graphics_pipeline_for(
+			// Specify which shaders the pipeline consists of:
+			avk::vertex_shader("shaders/dof2.vert"),
+			avk::fragment_shader("shaders/dof2.frag"),
+							
+			avk::from_buffer_binding(0) -> stream_per_vertex<glm::vec2>() -> to_location(0), // <-- corresponds to vertex shader's inPosition
+
+			// Some further settings:
+			avk::cfg::front_face::define_front_faces_to_be_clockwise(),
+			avk::cfg::viewport_depth_scissors_config::from_framebuffer(mDofFarFieldFB.as_reference()),
+
+			// We'll render to the framebuffer
+			avk::context().create_renderpass(
+			{
+				colorAttachmentDescription
+			}),
+							
+			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
+			avk::descriptor_binding(0, 0, mImageSamplerSsaoFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 2, mDoFBuffer)
+		);
+		
+		
+		mPipelineDofFinal = avk::context().create_graphics_pipeline_for(
+			// Specify which shaders the pipeline consists of:
+			avk::vertex_shader("shaders/dof3.vert"),
+			avk::fragment_shader("shaders/dof3.frag"),
 			
 			avk::from_buffer_binding(0) -> stream_per_vertex<glm::vec2>() -> to_location(0), // <-- corresponds to vertex shader's inPosition
 
@@ -509,17 +596,22 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			}, avk::context().main_window()->renderpass_reference().subpass_dependencies()),
 			
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
-			avk::descriptor_binding(0, 0, mImageSamplerScreenspaceColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
-			avk::descriptor_binding(0, 2, mDoFBuffer),
-			avk::descriptor_binding(0, 3, mSSAOBuffer)
+			avk::descriptor_binding(0, 0, mImageSamplerSsaoFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 1, mImageSamplerDofNearColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 2, mImageSamplerDofFarColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 3, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 4, mDoFBuffer)
 		);
-			
+
+		
 
 		// set up updater
 		// we want to use an updater, so create one:
 		mUpdater.emplace();
-		mPipelineScreenspace.enable_shared_ownership(); // Make it usable with the updater
+		mPipelineSSAO.enable_shared_ownership(); // Make it usable with the updater
+		mPipelineDofFar.enable_shared_ownership(); // Make it usable with the updater
+		mPipelineDofNear.enable_shared_ownership(); // Make it usable with the updater
+		mPipelineDofFinal.enable_shared_ownership(); // Make it usable with the updater
 		mPipelineSkybox.enable_shared_ownership(); // Make it usable with the updater
 		mRasterizePipeline.enable_shared_ownership(); // Make it usable with the updater
 
@@ -545,8 +637,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::swapchain_changed_event(avk::context().main_window()),
 			avk::shader_files_changed_event(mRasterizePipeline.as_reference()),
 			avk::shader_files_changed_event(mPipelineSkybox.as_reference()),
-			avk::shader_files_changed_event(mPipelineScreenspace.as_reference())
-		).update(mRasterizePipeline, mPipelineSkybox, mPipelineScreenspace);
+			avk::shader_files_changed_event(mPipelineSSAO.as_reference()),
+			avk::shader_files_changed_event(mPipelineDofFar.as_reference()),
+			avk::shader_files_changed_event(mPipelineDofNear.as_reference()),
+			avk::shader_files_changed_event(mPipelineDofFinal.as_reference())
+		).update(mRasterizePipeline, mPipelineSkybox, mPipelineDofFinal, mPipelineDofNear, mPipelineDofFar, mPipelineSSAO);
 		
 
 		
@@ -689,39 +784,24 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto& commandPool = avk::context().get_command_pool_for_single_use_command_buffers(*mQueue);
 		
 		// Create three command buffer:
-		auto cmdBfrs = commandPool->alloc_command_buffers(3u, vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+		auto cmdBfrs = commandPool->alloc_command_buffers(5u, vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
-		//Create two semaphores (one between each pipeline)
-		auto copyCompleteSemaphore = avk::context().create_semaphore();
-		auto rasterizerCompleteSemaphore = avk::context().create_semaphore();
+		//Create semaphores 
+		auto rasterizerComplete = avk::context().create_semaphore();
+		auto ssaoComplete = avk::context().create_semaphore();
+		auto ssaoComplete2 = avk::context().create_semaphore();
+
+		auto dofNearComplete = avk::context().create_semaphore();
+		auto dofFarComplete = avk::context().create_semaphore();
+
 		// The swap chain provides us with an "image available semaphore" for the current frame.
 		// Only after the swapchain image has become available, we may start rendering into it.
-		auto imageAvailableSemaphore = mainWnd->consume_current_image_available_semaphore();
+		auto imageAvailable = mainWnd->consume_current_image_available_semaphore();
 
-		//Note there is not really an order in the commands. The order is created by our wait_for and signaling_upon_completion conditions
-		//It's more declarative than imperative programming paradigm
-		//First command is the skybox -> into Framebuffer
-		// avk::context().record({
-		// 		avk::command::render_pass(mPipelineSkybox->renderpass_reference(), mOneFramebuffer.as_reference(), avk::command::gather(
-		// 			avk::command::bind_pipeline(mPipelineSkybox.as_reference()),
-		// 							avk::command::bind_descriptors(mPipelineSkybox->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-		// 								avk::descriptor_binding(0, 0, mViewProjBufferSkybox),
-		// 								avk::descriptor_binding(0, 1, mImageSamplerCubemap->as_combined_image_sampler(avk::layout::general))
-		// 							})),
-		// 							avk::command::one_for_each(mDrawCallsSkybox, [](const data_for_draw_call& drawCall) {
-		// 								return avk::command::draw_indexed(drawCall.mIndexBuffer.as_reference(), drawCall.mPositionsBuffer.as_reference());
-		// 							})
-		// 		))})
-		// 	.into_command_buffer(cmdBfrs[0])
-		// 	.then_submit_to(*mQueue)
-		// 	// Do not start to render before the image has become available:
-		// 	.waiting_for(imageAvailableSemaphore >> avk::stage::color_attachment_output)
-		// 	.signaling_upon_completion(avk::stage::color_attachment_output >> skyboxCompleteSemaphore)
-		// 	.submit();
-
-		//Second command is the rasterizer -> into Framebuffer
+		
+		//First renderpass is the main scene into the rasterizerFramebuffer
 		avk::context().record({
-		avk::command::render_pass(mPipelineSkybox->renderpass_reference(), mOneFramebuffer.as_reference(), avk::command::gather(
+		avk::command::render_pass(mPipelineSkybox->renderpass_reference(), mRasterizerFramebuffer.as_reference(), avk::command::gather(
 				avk::command::bind_pipeline(mPipelineSkybox.as_reference()),
 				avk::command::bind_descriptors(mPipelineSkybox->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 					avk::descriptor_binding(0, 0, mViewProjBufferSkybox),
@@ -731,7 +811,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					return avk::command::draw_indexed(drawCall.mIndexBuffer.as_reference(), drawCall.mPositionsBuffer.as_reference());
 				})
 			)),
-			avk::command::render_pass(mRasterizePipeline->renderpass_reference(), mOneFramebuffer.as_reference(), avk::command::gather(
+			avk::command::render_pass(mRasterizePipeline->renderpass_reference(), mRasterizerFramebuffer.as_reference(), avk::command::gather(
 				avk::command::bind_pipeline(mRasterizePipeline.as_reference()),
 				avk::command::bind_descriptors(mRasterizePipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 					avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
@@ -768,41 +848,103 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		})
 		.into_command_buffer(cmdBfrs[0])
 		.then_submit_to(*mQueue)
-		// Do not start to render before the skybox has been rendered:
-		// .waiting_for(skyboxCompleteSemaphore >> avk::stage::color_attachment_output)
-		// Do not start to render before the image has become available: (not sure if we need this because we already waited for the skybox, which waited for the image)
-		.waiting_for(imageAvailableSemaphore >> avk::stage::color_attachment_output)
-		.signaling_upon_completion(avk::stage::color_attachment_output >> rasterizerCompleteSemaphore)
+		// Do not start to render before the image has become available:
+		.waiting_for(imageAvailable >> avk::stage::color_attachment_output)
+		.signaling_upon_completion(avk::stage::color_attachment_output >> rasterizerComplete)
 		.submit();
-		
-					
+
+		//2. Render SSAO
 		avk::context().record({
-			avk::command::render_pass(mPipelineScreenspace->renderpass_reference(), avk::context().main_window()->current_backbuffer_reference(), avk::command::gather(
-				avk::command::bind_pipeline(mPipelineScreenspace.as_reference()),
-				avk::command::bind_descriptors(mPipelineScreenspace->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-					avk::descriptor_binding(0, 0, mImageSamplerScreenspaceColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 1, mImageSamplerScreenspaceDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 2, mDoFBuffer),
-					avk::descriptor_binding(0, 3, mSSAOBuffer)
+			avk::command::render_pass(mPipelineSSAO->renderpass_reference(), mSSAOFramebuffer.as_reference(), avk::command::gather(
+				avk::command::bind_pipeline(mPipelineSSAO.as_reference()),
+				avk::command::bind_descriptors(mPipelineSSAO->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+					avk::descriptor_binding(0, 0, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 2, mSSAOBuffer)
 				})),
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			)),
 		})
 		.into_command_buffer(cmdBfrs[1])
 		.then_submit_to(*mQueue)
-		// Do not start to render before the copy has been done:
-		.waiting_for(rasterizerCompleteSemaphore >> avk::stage::color_attachment_output)
+		.waiting_for(rasterizerComplete >> avk::stage::color_attachment_output)
+		.signaling_upon_completion(avk::stage::color_attachment_output >> ssaoComplete)
+		.signaling_upon_completion(avk::stage::color_attachment_output >> ssaoComplete2)
 		.submit();
 		// Let the command buffer handle the semaphore lifetimes:
-		cmdBfrs[1]->handle_lifetime_of(std::move(rasterizerCompleteSemaphore));
+		cmdBfrs[1]->handle_lifetime_of(std::move(rasterizerComplete));
+
+		//3. Render Near Field for DoF
+		avk::context().record({
+			avk::command::render_pass(mPipelineDofNear->renderpass_reference(), mDofNearFieldFB.as_reference(), avk::command::gather(
+				avk::command::bind_pipeline(mPipelineDofNear.as_reference()),
+				avk::command::bind_descriptors(mPipelineDofNear->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+					avk::descriptor_binding(0, 0, mImageSamplerSsaoFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 2, mDoFBuffer)
+				})),
+				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
+			)),
+		})
+		.into_command_buffer(cmdBfrs[2])
+		.then_submit_to(*mQueue)
+		.waiting_for(ssaoComplete >> avk::stage::color_attachment_output)
+		.signaling_upon_completion(avk::stage::color_attachment_output >> dofNearComplete)
+		.submit();
+		// Let the command buffer handle the semaphore lifetimes:
+		cmdBfrs[2]->handle_lifetime_of(std::move(ssaoComplete));
+
+
+		//4. Render Far Field for DoF
+		avk::context().record({
+			avk::command::render_pass(mPipelineDofFar->renderpass_reference(), mDofFarFieldFB.as_reference(), avk::command::gather(
+				avk::command::bind_pipeline(mPipelineDofFar.as_reference()),
+				avk::command::bind_descriptors(mPipelineDofFar->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+					avk::descriptor_binding(0, 0, mImageSamplerSsaoFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 2, mDoFBuffer)
+				})),
+				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
+			)),
+		})
+		.into_command_buffer(cmdBfrs[3])
+		.then_submit_to(*mQueue)
+		.waiting_for(ssaoComplete2 >> avk::stage::color_attachment_output)
+		.signaling_upon_completion(avk::stage::color_attachment_output >> dofFarComplete)
+		.submit();
+		// Let the command buffer handle the semaphore lifetimes:
+		cmdBfrs[3]->handle_lifetime_of(std::move(ssaoComplete2));
+		
+		//5. Render Final DoF
+		avk::context().record({
+			avk::command::render_pass(mPipelineDofFinal->renderpass_reference(), avk::context().main_window()->current_backbuffer_reference(), avk::command::gather(
+				avk::command::bind_pipeline(mPipelineDofFinal.as_reference()),
+				avk::command::bind_descriptors(mPipelineDofFinal->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+					avk::descriptor_binding(0, 0, mImageSamplerSsaoFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 1, mImageSamplerDofNearColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 2, mImageSamplerDofFarColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 3, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 4, mDoFBuffer)
+				})),
+				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
+			)),
+		})
+		.into_command_buffer(cmdBfrs[4])
+		.then_submit_to(*mQueue)
+		.waiting_for(dofFarComplete >> avk::stage::color_attachment_output)
+		.waiting_for(dofNearComplete >> avk::stage::color_attachment_output)
+		.submit();
+		// Let the command buffer handle the semaphore lifetimes:
+		cmdBfrs[4]->handle_lifetime_of(std::move(dofFarComplete));
+		cmdBfrs[4]->handle_lifetime_of(std::move(dofNearComplete));
 		
 		// Use a convenience function of avk::window to take care of the command buffers lifetimes:
 		// They will get deleted in the future after #concurrent-frames have passed by.
 		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[0]));
 		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[1]));
-		// avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[2]));
-
-		// avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[2]));
+		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[2]));
+		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[3]));
+		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[4]));
 	}
 
 	void update() override
@@ -927,16 +1069,36 @@ private: // v== Member variables ==v
 	std::optional<camera_path> mCameraPath;
 	std::optional<camera_path_recorder> mCameraPathRecorder;
 
-	avk::framebuffer mOneFramebuffer;
-	avk::graphics_pipeline mPipelineScreenspace;
-	avk::buffer mDoFBuffer;
+	//1. rasterizer
+	avk::framebuffer mRasterizerFramebuffer;//Rasterizer and skybox render into this
+	avk::image_sampler mImageSamplerRasterFBColor;
+	avk::image_sampler mImageSamplerRasterFBDepth;
+
+	//2. SSAO
+	avk::graphics_pipeline mPipelineSSAO;//renders into ssaoFramebuffer
+	avk::framebuffer mSSAOFramebuffer;//SSAO renders into this
 	avk::buffer mSSAOBuffer;
+	avk::image_sampler mImageSamplerSsaoFBColor;
+
+	//3. DoF 1. pass (renders near field into dofFramebuffer1)
+	avk::graphics_pipeline mPipelineDofNear;//renders into mDofNearFieldFB
+	avk::framebuffer mDofNearFieldFB;//Dof1 renders into this
+	avk::image_sampler mImageSamplerDofNearColor;
+
+	//4. DoF 2. pass (renders far field into dofFramebuffer2)
+	avk::graphics_pipeline mPipelineDofFar;//renders into mDofFarFieldFB
+	avk::framebuffer mDofFarFieldFB;//Dof2 renders into this
+	avk::image_sampler mImageSamplerDofFarColor;
+	
+	//5. DoF 3. pass (renders blurred image into main window) - uses near field, far field, depth buffer
+	avk::graphics_pipeline mPipelineDofFinal;//renders directly to the screen
+	
+	avk::buffer mDoFBuffer;
+
+	//general screenspace quad
 	avk::buffer mVertexBufferScreenspace;
 	avk::buffer mIndexBufferScreenspace;
-	avk::image_sampler mImageSamplerScreenspaceColor;
-	avk::image_sampler mImageSamplerScreenspaceDepth;
-
-
+	
 	// imgui elements
 	std::optional<combo_box_container> mPresentationModeCombo;
 	std::optional<check_box_container> mSrgbFrameBufferCheckbox;
