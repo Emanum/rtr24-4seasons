@@ -61,10 +61,12 @@ class model_loader_app : public avk::invokee
 		float mNearPlane = 0.0f;
 		float mFarPlane = 0.0f;
 		std::vector<glm::vec2> mBokehKernel = mBokehKernel;
+		std::vector<glm::vec2> mGaussianKernel = mGaussianKernel;
 	};
 
 	std::vector<glm::vec2> mBokehKernel;
-
+	std::vector<glm::vec2> mGaussianKernel;
+	
 	//for SSAO
 	struct SSAOData {
 		int mEnabled = 0;
@@ -163,7 +165,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	void init_scene()
 	{
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/SimpleScene2.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/SimpleScene3.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -357,6 +359,20 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		};
 		mBokehKernel = kernel;
 	}
+
+	void init_gaussian_kernel()
+	{
+		//7x7 Gaussian kernel
+		auto kernel = {
+			glm::vec2(0.00000067f, 0.00002292f), glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.01110899f, 0.13533528f), glm::vec2(0.01110899f, 0.13533528f), glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.00000067f, 0.00002292f),
+			glm::vec2(0.00002292f, 0.00078904f), glm::vec2(0.00673795f, 0.20189652f), glm::vec2(0.36787944f, 1.00000000f), glm::vec2(0.36787944f, 1.00000000f), glm::vec2(0.00673795f, 0.20189652f), glm::vec2(0.00002292f, 0.00078904f),
+			glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.13533528f, 0.36787944f), glm::vec2(1.00000000f, 2.71828183f), glm::vec2(1.00000000f, 2.71828183f), glm::vec2(0.13533528f, 0.36787944f), glm::vec2(0.00019117f, 0.00597704f),
+			glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.13533528f, 0.36787944f), glm::vec2(1.00000000f, 2.71828183f), glm::vec2(1.00000000f, 2.71828183f), glm::vec2(0.13533528f, 0.36787944f), glm::vec2(0.00019117f, 0.00597704f),
+			glm::vec2(0.00002292f, 0.00078904f), glm::vec2(0.00673795f, 0.20189652f), glm::vec2(0.36787944f, 1.00000000f), glm::vec2(0.36787944f, 1.00000000f), glm::vec2(0.00673795f, 0.20189652f), glm::vec2(0.00002292f, 0.00078904f),
+			glm::vec2(0.00000067f, 0.00002292f), glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.01110899f, 0.13533528f), glm::vec2(0.01110899f, 0.13533528f), glm::vec2(0.00019117f, 0.00597704f), glm::vec2(0.00000067f, 0.00002292f)
+		};
+		mGaussianKernel = kernel;
+	}
 	
 
 	void initialize() override
@@ -441,6 +457,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		init_ssao_kernels();
 		init_bokeh_kernel();
+		init_gaussian_kernel();
 		
 		//Create Vertex Buffer for Screenspace Quad
 		{
@@ -808,6 +825,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		dofData.mNearPlane = mQuakeCam.near_plane_distance();// we assume both camera have the same near and far plane
 		dofData.mFarPlane = mQuakeCam.far_plane_distance();
 		dofData.mBokehKernel = mBokehKernel;
+		dofData.mGaussianKernel = mGaussianKernel;
 		auto dofCmd = mDoFBuffer->fill(&dofData, 0);
 
 		SSAOData ssaoData;

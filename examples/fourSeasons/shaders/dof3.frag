@@ -18,6 +18,7 @@ layout (set = 0, binding = 5) uniform uniformDoF
     float nearPlane;
     float farPlane;
     vec2[49] bokehKernel;
+    vec2[36] gaussianKernel;
 } DoF;
 
 // Gaussian kernel
@@ -41,21 +42,29 @@ void main() {
         } else if (DoF.mode == 3) {//far field
             fs_out = texture(farTexture, texCoord);
         } else if (DoF.mode == 0) {//blur
-            float nearFieldBlur = texture(nearTexture, texCoord).r;
-            //for the near field use gassian blur with a 3x3 kernel
+            //apply gaussian blur to near field
             vec4 nearBlur = vec4(0.0);
+            //apply a box blur with 10x10 kernel
             for (int i = 0; i < 9; i++)
             {
-                vec2 offset = vec2(float(i % 3 - 1), float(i / 3 - 1));
-                nearBlur += texture(nearTexture, texCoord + offset / 512.0) * kernel[i];
+                for (int j = 0; j < 9; j++)
+                {
+                    nearBlur += texture(nearTexture, texCoord + vec2(i - 4, j - 4) / 512.0) * kernel[i] * kernel[j];
+                }
             }
-            //            nearBlur = nearBlur / 9.0;
-
-            vec4 farTextureVal = texture(farTexture, texCoord);
-            vec4 centerTextureVal = texture(centerTexture, texCoord);
-
-            fs_out = nearBlur + centerTextureVal + farTextureVal;
-            fs_out = centerTextureVal;
+//            nearBlur = pow(nearBlur, vec4(blurPower));
+            
+            vec4 farBlur = vec4(0.0);
+            //apply a box blur with 10x10 kernel
+            for (int i = 0; i < 9; i++)
+            {
+                for (int j = 0; j < 9; j++)
+                {
+                    farBlur += texture(farTexture, texCoord + vec2(i - 4, j - 4) / 512.0) * kernel[i] * kernel[j];
+                }
+            }
+            
+            fs_out = nearBlur + farBlur + texture(centerTexture, texCoord);
         }
     } else {
         fs_out = texture(ssaoTexture, texCoord);
