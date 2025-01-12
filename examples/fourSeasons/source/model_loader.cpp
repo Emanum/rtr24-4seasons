@@ -72,9 +72,6 @@ class model_loader_app : public avk::invokee
 		std::vector<glm::vec3> gaussianKernel;
 		std::vector<glm::vec2> bokehKernel;
 	};
-	
-	std::vector<glm::vec2> mDofBokehKernel;
-	std::vector<glm::vec3> mDofGaussianKernel;
 
 	DoFKernelBufferStruct mDoFKernelBufferStruct;
 

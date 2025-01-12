@@ -23,7 +23,7 @@ layout (set = 0, binding = 5) uniform uniformDoF
 layout(set = 1, binding = 0) buffer UniformBufferObject
 {
     vec3[49] gaussianKernel;
-    vec2[49] bokehKernel;
+    vec2[48] bokehKernel;
 } kernel;
 
 void main() {
