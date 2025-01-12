@@ -38,5 +38,7 @@ void main() {
     } else {
         depthVis = centerColor;
     }
-    fs_out = vec4(depthVis, 1.0);
+    float nearFieldAmount = depthVis.r;
+    vec4 screenColor = texture(screenTexture, texCoord);
+    fs_out = mix(vec4(0, 0, 0, 1), screenColor, nearFieldAmount);
 }

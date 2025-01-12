@@ -107,7 +107,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mDoFSliderFocus = slider_container<float>{ "Focus", 0.8f, 0.0f, 1, [this](float val) { this->mDoFFocus = val; } };
 		mDoFSliderFocusRange = slider_container<float>{ "Range", 0.01f, 0.0f, 0.1, [this](float val) { this->mDoFFocusRange = val; } };
 		mDoFSliderDistanceOutOfFocus = slider_container<float>{ "Dist", 0.05f, 0.0f, 0.2, [this](float val) { this->mDoFDistanceOutOfFocus = val; } };
-		mDoFEnabledCheckbox = check_box_container{ "Enabled", true, [this](bool val) { this->mDoFEnabled = val; } };
+		mDoFEnabledCheckbox = check_box_container{ "Enabled", false, [this](bool val) { this->mDoFEnabled = val; } };
 		mDoFModeCombo = combo_box_container{ "Mode", { "depth", "gaussian", "bokeh" }, 1, [this](std::string val) { this->mDoFMode = val; } };
 	}
 
@@ -1126,7 +1126,7 @@ private: // v== Member variables ==v
 	float mDoFFocus = 0.8f;
 	float mDoFFocusRange = 0.1f;
 	float mDoFDistanceOutOfFocus = 0.1f;
-	int mDoFEnabled = 1;
+	int mDoFEnabled = 0;
 	std::string mDoFMode = "gaussian";
 
 	// SSAO data

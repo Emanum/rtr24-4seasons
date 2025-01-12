@@ -42,10 +42,23 @@ void main() {
             fs_out = farTextureVal + nearTextureVal;
         }else if(DoF.mode == 1 || DoF.mode == 2)
         {
-            vec4 ogColor = texture(ssaoTexture, texCoord);
-            //bokeh
-            vec4 blurColor = vec4(0.0);
-            fs_out = texture(ssaoTexture, texCoord);
+            float nearFieldBlur = texture(nearTexture, texCoord).r;
+            //for the near field use gassian blur with a 3x3 kernel
+            vec4 nearBlur = vec4(0.0);
+            for (int i = 0; i < 9; i++)
+            {
+                vec2 offset = vec2(float(i % 3 - 1), float(i / 3 - 1));
+                nearBlur += texture(nearTexture, texCoord + offset / 512.0) * kernel[i];
+            }
+//            nearBlur = nearBlur / 9.0;
+            
+            vec4 farTextureVal = texture(farTexture, texCoord);
+
+            fs_out = nearBlur + farTextureVal;
+            
+//            vec4 ogColor = texture(ssaoTexture, texCoord);
+//            //bokeh
+//            vec4 blurColor = vec4(0.0);
         }
 
     }else{
