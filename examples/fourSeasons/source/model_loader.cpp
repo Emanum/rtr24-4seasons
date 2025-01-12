@@ -378,34 +378,43 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		// mImageViewScreenspaceDepth =  avk::context().create_depth_image_view(avk::context().create_depth_image(r.x, r.y, vk::Format::eD32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_depth_stencil_attachment));
 
 		//framebuffer is used to render a quad with the screenspace effect).
-		auto colorAttachment = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
-		auto depthAttachment = avk::context().create_depth_image_view(avk::context().create_depth_image(r.x, r.y, vk::Format::eD32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_depth_stencil_attachment));
-		auto colorAttachmentDescription = avk::attachment::declare_for(colorAttachment.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
-		auto depthAttachmentDescription = avk::attachment::declare_for(depthAttachment.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::depth_stencil_attachment_optimal), avk::usage::depth_stencil, avk::on_store::store);
+		auto colorAttachmentRaster = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		auto colorAttachmentDescriptionRaster = avk::attachment::declare_for(colorAttachmentRaster.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
+		auto depthAttachmentRaster = avk::context().create_depth_image_view(avk::context().create_depth_image(r.x, r.y, vk::Format::eD32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_depth_stencil_attachment));
+		auto depthAttachmentDescription = avk::attachment::declare_for(depthAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::depth_stencil_attachment_optimal), avk::usage::depth_stencil, avk::on_store::store);
 
+		auto colorAttachmentSSAO = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		auto colorAttachmentDescriptionSSAO = avk::attachment::declare_for(colorAttachmentRaster.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
+
+		auto colorAttachmentNearDof = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		auto colorAttachmentDescriptionNearDof = avk::attachment::declare_for(colorAttachmentRaster.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
+		
+		auto colorAttachmentFarDof = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		auto colorAttachmentDescriptionFarDof = avk::attachment::declare_for(colorAttachmentRaster.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
+		
 		mRasterizerFramebuffer = avk::context().create_framebuffer(
-			{ colorAttachmentDescription, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
-			avk::make_vector( colorAttachment, depthAttachment )
+			{ colorAttachmentDescriptionRaster, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
+			avk::make_vector( colorAttachmentRaster, depthAttachmentRaster )
 		);
 		auto sampler = avk::context().create_sampler(avk::filter_mode::trilinear, avk::border_handling_mode::clamp_to_edge, 0);
 		mImageSamplerRasterFBColor = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(0), sampler);
 		mImageSamplerRasterFBDepth = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(1), sampler);
 
 		mSSAOFramebuffer = avk::context().create_framebuffer(
-			{ colorAttachmentDescription }, 
-			avk::make_vector(colorAttachment)
+			{ colorAttachmentDescriptionSSAO }, 
+			avk::make_vector(colorAttachmentSSAO)
 		);
 		mImageSamplerSsaoFBColor = avk::context().create_image_sampler(mSSAOFramebuffer->image_view_at(0), sampler);
 
 		mDofNearFieldFB = avk::context().create_framebuffer(
-			{ colorAttachmentDescription },
-			avk::make_vector(colorAttachment)
+			{ colorAttachmentDescriptionNearDof },
+			avk::make_vector(colorAttachmentNearDof)
 		);
 		mImageSamplerDofNearColor = avk::context().create_image_sampler(mDofNearFieldFB->image_view_at(0), sampler);
 
 		mDofFarFieldFB = avk::context().create_framebuffer(
-			{ colorAttachmentDescription },
-			avk::make_vector(colorAttachment)
+			{ colorAttachmentDescriptionFarDof },
+			avk::make_vector(colorAttachmentFarDof)
 		);
 		mImageSamplerDofFarColor = avk::context().create_image_sampler(mDofFarFieldFB->image_view_at(0), sampler);
 		
@@ -464,7 +473,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// mColorAttachmentDescription,
 			avk::context().create_renderpass(
 			{
-				colorAttachmentDescription,
+				colorAttachmentDescriptionRaster,
 				depthAttachmentDescription
 			}),
 			
@@ -491,7 +500,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// We'll render to the framebuffer
 			avk::context().create_renderpass(
 			{
-				colorAttachmentDescription,
+				colorAttachmentDescriptionRaster,
 				depthAttachmentDescription
 			}),
 				
@@ -521,7 +530,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// We'll render to the framebuffer
 			avk::context().create_renderpass(
 			{
-				colorAttachmentDescription
+				colorAttachmentDescriptionRaster
 			}),
 			
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
@@ -544,7 +553,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// We'll render to the framebuffer
 			avk::context().create_renderpass(
 			{
-				colorAttachmentDescription
+				colorAttachmentDescriptionRaster
 			}),
 					
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
@@ -567,7 +576,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// We'll render to the framebuffer
 			avk::context().create_renderpass(
 			{
-				colorAttachmentDescription
+				colorAttachmentDescriptionRaster
 			}),
 							
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader

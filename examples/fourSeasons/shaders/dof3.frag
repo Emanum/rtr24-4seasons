@@ -106,5 +106,7 @@ void main() {
         fs_out = texture(ssaoTexture, texCoord);
     }
 
+//   fs_out = texture(farTexture, texCoord);
+
         
 }
