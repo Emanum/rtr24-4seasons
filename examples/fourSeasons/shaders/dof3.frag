@@ -32,81 +32,23 @@ const vec3 backgroundColor = vec3(0.0, 1.0, 0.0);//green
 const vec3 centerColor = vec3(0.0, 0.0, 0.0);//black
 
 void main() {
-   //if enabled -> show depth buffer else show screen texture
     if(DoF.enabled == 1)
     {
-        // for demo purpose we visualize the depth buffer
-        // we split the depth value into 3 groups
-        // 1. foreground -> between 0 and uniformDoF.focus - uniformDoF.range
-        // 2. focus -> between (uniformDoF.focus - uniformDoF.range) and (uniformDoF.focus + uniformDoF.range)
-        // 3. background -> between (uniformDoF.focus + uniformDoF.range) and 1
-        //But the jump between the groups should be smooth so we use the distOutOfFocus to make the transition smooth
-        
         float depth = texture(depthTexture, texCoord).r;
-        //In theory we should linearize the depth value becase the depth value is not linear 
-
-        float mdistOutOfFocus = DoF.distOutOfFocus;
-        float mrange = DoF.range;
-
-        float lowerBoundCenter = max(DoF.focus - mrange,0);
-        float upperBoundCenter = min(DoF.focus + mrange,1);
-        float lowerBoundTotalOoF = max(DoF.focus - mrange - mdistOutOfFocus,0);
-        float upperBoundTotalOoF = min(DoF.focus + mrange + mdistOutOfFocus,1);
-
-        vec3 depthVis = vec3(0.0);
-        //  TotalOoF<lowerBoundCenter>Center<upperBoundCenter>TotalOoF
-        if(depth <= lowerBoundCenter)
-        {
-            //mix between foreground and center
-            float mixerg = ((lowerBoundTotalOoF-depth) / (lowerBoundTotalOoF - lowerBoundCenter));
-            depthVis = mix(foregroundColor, centerColor, mixerg);
-        } else if(depth > lowerBoundCenter && depth < upperBoundCenter)
-        {
-            //center -> complete in focus
-            depthVis = centerColor;
-        } else
-        {
-            //mix between center and background
-            float test = (depth - upperBoundCenter) / (upperBoundCenter - upperBoundTotalOoF);
-            depthVis = mix(centerColor, backgroundColor, (depth - upperBoundCenter) / (upperBoundTotalOoF - upperBoundCenter));
-        }
-
-
-        //take the highest of the r or g value from the outOfFocus vector
-        float outOfFocusAmount = max(depthVis.r, depthVis.g);
-        
-        //now we have the outOfFocusAmount we can blur the screen texture using gaussian blur
-        //0-> no blur, 1-> full blur
-        float blurAmount = pow(outOfFocusAmount, blurPower);
-        
-        vec4 ogColor = texture(ssaoTexture, texCoord);
-        vec4 blurColor = vec4(0.0);
-        //we sample on each bokeh kernel point; sum it up and then divide it by the sum of the kernel
-        //bokeh kernel has 49 points
-        //each sample point is a vec2 with x and y value offset in pixel
-        for (int i = 0; i < 49; i++)
-        {
-            blurColor += texture(ssaoTexture, texCoord + DoF.bokehKernel[i]);
-        }
-        blurColor /= 49.0;
-        
-        
         if (DoF.mode == 0)
         {
-            //depth
-            fs_out = vec4(depthVis, 1.0);
+            vec4 farTextureVal = texture(farTexture, texCoord);
+            vec4 nearTextureVal = texture(nearTexture, texCoord);
+            fs_out = farTextureVal + nearTextureVal;
         }else if(DoF.mode == 1 || DoF.mode == 2)
         {
+            vec4 ogColor = texture(ssaoTexture, texCoord);
             //bokeh
-//            fs_out = mix(ogColor, blurColor, blurAmount);
-            fs_out = mix(ogColor, blurColor, outOfFocusAmount);
+            vec4 blurColor = vec4(0.0);
+            fs_out = texture(ssaoTexture, texCoord);
         }
 
     }else{
         fs_out = texture(ssaoTexture, texCoord);
     }
-
-//   fs_out = texture(farTexture, texCoord);
-
-        
 }
