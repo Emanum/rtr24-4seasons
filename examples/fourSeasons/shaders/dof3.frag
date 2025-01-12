@@ -1,14 +1,14 @@
 ﻿#version 450
 
-layout(location = 0) in vec2 texCoord;
-layout(location = 0) out vec4 fs_out;
+layout (location = 0) in vec2 texCoord;
+layout (location = 0) out vec4 fs_out;
 
-layout(set = 0, binding = 0) uniform sampler2D ssaoTexture;
-layout(set = 0, binding = 1) uniform sampler2D nearTexture;
-layout(set = 0, binding = 2) uniform sampler2D centerTexture;
-layout(set = 0, binding = 3) uniform sampler2D farTexture;
-layout(set = 0, binding = 4) uniform sampler2D depthTexture;
-layout(set = 0, binding = 5) uniform uniformDoF
+layout (set = 0, binding = 0) uniform sampler2D ssaoTexture;
+layout (set = 0, binding = 1) uniform sampler2D nearTexture;
+layout (set = 0, binding = 2) uniform sampler2D centerTexture;
+layout (set = 0, binding = 3) uniform sampler2D farTexture;
+layout (set = 0, binding = 4) uniform sampler2D depthTexture;
+layout (set = 0, binding = 5) uniform uniformDoF
 {
     int enabled;
     int mode;//0-> depth, 1-> gaussian, 2-> bokeh
@@ -32,16 +32,15 @@ const vec3 backgroundColor = vec3(0.0, 1.0, 0.0);//green
 const vec3 centerColor = vec3(0.0, 0.0, 0.0);//black
 
 void main() {
-    if(DoF.enabled == 1)
+    if (DoF.enabled == 1)
     {
-        float depth = texture(depthTexture, texCoord).r;
-        if (DoF.mode == 0)
-        {
-            vec4 farTextureVal = texture(farTexture, texCoord);
-            vec4 nearTextureVal = texture(nearTexture, texCoord);
-            fs_out = farTextureVal + nearTextureVal;
-        }else if(DoF.mode == 1 || DoF.mode == 2)
-        {
+        if (DoF.mode == 1) {//near field
+            fs_out = texture(nearTexture, texCoord);
+        } else if (DoF.mode == 2) {//center field
+            fs_out = texture(centerTexture, texCoord);
+        } else if (DoF.mode == 3) {//far field
+            fs_out = texture(farTexture, texCoord);
+        } else if (DoF.mode == 0) {//blur
             float nearFieldBlur = texture(nearTexture, texCoord).r;
             //for the near field use gassian blur with a 3x3 kernel
             vec4 nearBlur = vec4(0.0);
@@ -50,19 +49,15 @@ void main() {
                 vec2 offset = vec2(float(i % 3 - 1), float(i / 3 - 1));
                 nearBlur += texture(nearTexture, texCoord + offset / 512.0) * kernel[i];
             }
-//            nearBlur = nearBlur / 9.0;
-            
+            //            nearBlur = nearBlur / 9.0;
+
             vec4 farTextureVal = texture(farTexture, texCoord);
             vec4 centerTextureVal = texture(centerTexture, texCoord);
 
             fs_out = nearBlur + centerTextureVal + farTextureVal;
-            
-//            vec4 ogColor = texture(ssaoTexture, texCoord);
-//            //bokeh
-//            vec4 blurColor = vec4(0.0);
+            fs_out = centerTextureVal;
         }
-
-    }else{
+    } else {
         fs_out = texture(ssaoTexture, texCoord);
     }
 }

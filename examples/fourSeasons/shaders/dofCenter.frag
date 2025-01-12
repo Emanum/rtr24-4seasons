@@ -18,9 +18,7 @@ layout (set = 0, binding = 2) uniform uniformDoF
     vec2[49] bokehKernel;
 } DoF;
 
-const vec3 nearColor = vec3(1.0, 0.0, 0.0);//red
 
-const vec3 centerColor = vec3(0.0, 0.0, 0.0);//black
 
 void main() {
     float depth = texture(depthTexture, texCoord).r;
@@ -28,24 +26,26 @@ void main() {
     float upperBoundCenter = min(DoF.focus + DoF.range, 1);
     float lowerBoundTotalOoF = max(DoF.focus - DoF.range - DoF.distOutOfFocus, 0);
     float upperBoundTotalOoF = min(DoF.focus + DoF.range + DoF.distOutOfFocus,1);
-
-    vec3 depthVis = vec3(0.0);
-    vec4 notCenter = vec4(0, 0, 0, 1);
-    if (lowerBoundTotalOoF <= depth && depth <= upperBoundTotalOoF)
+    
+    float center = 1.0f;
+    float notCenter = 0.0f;
+    
+    float depthVis = 0.0;
+    
+    if(depth >= lowerBoundCenter && depth <= upperBoundCenter)
     {
-        if (depth >= upperBoundCenter)
-        {
-            //mix between center and background
-            depthVis = mix(centerColor, nearColor, (depth - upperBoundCenter) / (upperBoundTotalOoF - upperBoundCenter));
-        } else {
-            //mix between foreground and center
-            depthVis = mix(nearColor, centerColor, (depth - lowerBoundTotalOoF) / (lowerBoundCenter - lowerBoundTotalOoF));
-        }
-        notCenter = texture(screenTexture, texCoord);
+        depthVis = center;
     }
-    else {
-        depthVis = centerColor;
+    else if(depth > lowerBoundTotalOoF && depth < lowerBoundCenter){
+        float percentInCenter = (depth - lowerBoundTotalOoF) / (lowerBoundCenter - lowerBoundTotalOoF);
+        depthVis = mix(notCenter, center, percentInCenter);
+    } else if(depth > upperBoundCenter && depth < upperBoundTotalOoF){
+        float percentInCenter = (depth - upperBoundCenter) / (upperBoundTotalOoF - upperBoundCenter);
+        depthVis = mix(center, notCenter, percentInCenter);
     }
-    float centerFieldAmount =  depthVis.r;
-    fs_out = mix(vec4(0, 0, 0, 1), notCenter, centerFieldAmount);
+    depthVis = max(0.0, depthVis);
+    depthVis = min(1.0, depthVis);
+    
+    vec4 ogColor = texture(screenTexture, texCoord);
+    fs_out = mix(vec4(0, 0, 0, 1), ogColor, depthVis);
 }
