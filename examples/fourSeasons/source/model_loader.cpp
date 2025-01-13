@@ -278,7 +278,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	}
 
 
-	void init_ssao_kernels()
+	void init_ssao_data()
 	{
 		std::vector<glm::vec4> kernel(g_ssao::kernelSize);
 		std::vector<glm::vec4> noise(g_ssao::noiseSize);
@@ -306,6 +306,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::memory_usage::device, {},
 			avk::uniform_buffer_meta::create_from_data(kernel)
 		);
+		avk::context().record_and_submit_with_fence(
+			{ mSSAOKernel->fill(kernel.data(), 0) },
+			*mQueue
+		)->wait_until_signalled();
 
 		// Create a rotation vectors for the noise texture
 		for (size_t i = 0; i < g_ssao::noiseSize; i++) {
@@ -319,12 +323,24 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			));
 		}
 
+		auto noiseImage = avk::context().create_image(
+			4, 4, vk::Format::eR32G32B32A32Sfloat,
+			1, avk::memory_usage::device, avk::image_usage::general_read_only_image
+		);
+		auto noiseBuffer = avk::context().create_buffer(
+			avk::memory_usage::device, {},
+			avk::storage_texel_buffer_meta::create_from_data(noise)
+		);
+		avk::context().record_and_submit_with_fence(
+			{ noiseBuffer->fill(noise.data(), 0) },
+			*mQueue
+		)->wait_until_signalled();
+
+		avk::copy_buffer_to_image(noiseBuffer, noiseImage, avk::layout::color_attachment_optimal);
+
 		mSSAONoiseTexture = avk::context().create_image_sampler(
 			avk::context().create_image_view(
-				avk::context().create_image(
-					4, 4, vk::Format::eR32G32B32A32Sfloat,
-					1, avk::memory_usage::device, avk::image_usage::general_read_only_image
-				)
+				noiseImage
 			),
 			avk::context().create_sampler(avk::filter_mode::nearest_neighbor, avk::border_handling_mode::repeat)
 		);
@@ -497,7 +513,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::uniform_buffer_meta::create_from_data(SSAOData())
 		);
 
-		init_ssao_kernels();
+		init_ssao_data();
 
 		// A buffer to hold all the material data:
 		// mMaterialBuffer = avk::context().create_buffer(
