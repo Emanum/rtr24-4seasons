@@ -1,7 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup>
-    <ClCompile Include="..\..\..\examples\fourSeasons\source\main.cpp" />
     <ClCompile Include="..\..\..\examples\fourSeasons\source\model_loader.cpp" />
     <ClCompile Include="cg_stdafx.cpp">
       <Filter>precompiled_headers</Filter>
@@ -26,71 +25,11 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\a_triangle.vert">
       <Filter>shaders</Filter>
     </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\diffuse_shading_fixed_lightsource.frag">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\transform_and_pass_pos_nrm_uv.vert">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\skybox.vert">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\skybox.frag">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\dof1.frag">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\dof1.vert">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\dof2.frag">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\dof2.vert">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\dof3.frag">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\dof3.vert">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\dofCenter.frag">
-      <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\examples\fourSeasons\shaders\dofCenter.vert">
-      <Filter>shaders</Filter>
-    </None>
     <None Include="..\..\..\examples\fourSeasons\shaders\ssao.frag">
       <Filter>shaders</Filter>
     </None>
     <None Include="..\..\..\examples\fourSeasons\shaders\ssao.vert">
       <Filter>shaders</Filter>
-    </None>
-    <None Include="..\..\..\rtr24-4seasons-assets\skybox\cube.obj">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\rtr24-4seasons-assets\skybox\SkyDawn.dds">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\rtr24-4seasons-assets\skybox\SkyWater.dds">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\rtr24-4seasons-assets\Environment.fbx">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\rtr24-4seasons-assets\aerial_rocks_04_2k.blend\textures\aerial_rocks_04_diff_2k.jpg">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\rtr24-4seasons-assets\aerial_rocks_04_2k.blend\textures\aerial_rocks_04_disp_2k.png">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\rtr24-4seasons-assets\aerial_rocks_04_2k.blend\textures\aerial_rocks_04_nor_gl_2k.jpg">
-      <Filter>assets</Filter>
-    </None>
-    <None Include="..\..\..\rtr24-4seasons-assets\aerial_rocks_04_2k.blend\textures\aerial_rocks_04_rough_2k.jpg">
-      <Filter>assets</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
@@ -100,7 +39,20 @@
     <ClInclude Include="cg_targetver.hpp">
       <Filter>precompiled_headers</Filter>
     </ClInclude>
-    <ClInclude Include="..\..\..\examples\model_loader\source\camera_path.hpp" />
-    <ClInclude Include="..\..\..\examples\model_loader\source\ui_helper.hpp" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof2.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof2.vert" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof3.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof3.vert" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dofCenter.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dofCenter.vert" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\source\camera_path.hpp" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\source\camera_path_recorder.hpp" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\source\ui_helper.hpp" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\diffuse_shading_fixed_lightsource.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\transform_and_pass_pos_nrm_uv.vert" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\skybox.vert" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\skybox.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof1.frag" />
+    <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof1.vert" />
   </ItemGroup>
 </Project>

@@ -12,5 +12,9 @@ layout(set = 0, binding = 2) uniform uniformSSAO
 } SSAO;
 
 void main() {
-    fs_out = texture(screenTexture, texCoord);
+    if (SSAO.enabled == 1) {
+        fs_out = texture(screenTexture, texCoord);
+    } else {
+        fs_out = texture(screenTexture, texCoord);
+    }
 }

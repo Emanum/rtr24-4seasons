@@ -25,6 +25,8 @@
   <ItemGroup>
     <None Include="..\..\..\examples\fourSeasons\shaders\a_triangle.frag" />
     <None Include="..\..\..\examples\fourSeasons\shaders\a_triangle.vert" />
+    <None Include="..\..\..\examples\fourSeasons\shaders\ssao.frag" />
+    <None Include="..\..\..\examples\fourSeasons\shaders\ssao.vert" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\examples\fourSeasons\shaders\dof2.frag" />
@@ -202,7 +204,8 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalOptions></AdditionalOptions>
+      <AdditionalOptions>
+      </AdditionalOptions>
     </Link>
     <CustomBuildStep>
       <Command>powershell.exe -ExecutionPolicy Bypass -File "$(ToolsBin)invoke_post_build_helper.ps1" -msbuild "$(MsBuildToolsPath)"  -configuration "$(Configuration)" -framework "$(FrameworkRoot)\"  -platform "$(Platform)" -vcxproj "$(ProjectPath)" -filters "$(ProjectPath).filters" -output "$(OutputPath)\" -executable "$(TargetPath)" -external "$(ExternalRoot)\"</Command>
