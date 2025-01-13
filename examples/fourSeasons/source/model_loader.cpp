@@ -86,8 +86,8 @@ class model_loader_app : public avk::invokee
 		int mEnabled = 0;
 	};
 
-	std::vector<glm::vec4> mSSAOKernel;
-	std::vector<glm::vec4> mSSAONoise;
+	avk::buffer mSSAOKernel;
+	avk::image_sampler mSSAONoiseTexture;
 
 	const std::vector<glm::vec2> mScreenspaceQuadVertexData = {
 		{-1.0f, -1.0f},
@@ -280,9 +280,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 	void init_ssao_kernels()
 	{
+		std::vector<glm::vec4> kernel(g_ssao::kernelSize);
+		std::vector<glm::vec4> noise(g_ssao::noiseSize);
 		std::uniform_real_distribution<float> range(0.0, 1.0);
 		std::mt19937 randomEngine;
-		mSSAOKernel.reserve(g_ssao::kernelSize);
 		// Generate samples in a hemisphere
 		for (size_t i = 0; i < g_ssao::kernelSize; i++) {
 			glm::vec3 sample(
@@ -298,22 +299,35 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// lerp
 			scale = 0.1 + scale*scale * (1.0 - 0.1);
 
-			mSSAOKernel.push_back(glm::vec4(sample * scale, 0.0f));
+			kernel.push_back(glm::vec4(sample * scale, 0.0f));
 		}
 
+		mSSAOKernel = avk::context().create_buffer(
+			avk::memory_usage::device, {},
+			avk::uniform_buffer_meta::create_from_data(kernel)
+		);
+
 		// Create a rotation vectors for the noise texture
-		mSSAONoise.reserve(g_ssao::noiseSize);
 		for (size_t i = 0; i < g_ssao::noiseSize; i++) {
-			glm::vec4 noise(
+			noise.push_back(glm::vec4(
 				range(randomEngine) * 2.0 - 1.0,
 				range(randomEngine) * 2.0 - 1.0,
 				// We want to rotate around the z axis (up)
 				0.0f,
+				// Filler for vec4
 				0.0f
-			);
-
-			mSSAONoise.push_back(noise);
+			));
 		}
+
+		mSSAONoiseTexture = avk::context().create_image_sampler(
+			avk::context().create_image_view(
+				avk::context().create_image(
+					4, 4, vk::Format::eR32G32B32A32Sfloat,
+					1, avk::memory_usage::device, avk::image_usage::general_read_only_image
+				)
+			),
+			avk::context().create_sampler(avk::filter_mode::nearest_neighbor, avk::border_handling_mode::repeat)
+		);
 	}
 
 	std::vector<glm::vec4> init_bokeh_kernel()
