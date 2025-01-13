@@ -86,8 +86,8 @@ class model_loader_app : public avk::invokee
 		int mEnabled = 0;
 	};
 
-	std::vector<glm::vec3> mSSAOKernel;
-	std::vector<glm::vec3> mSSAONoise;
+	std::vector<glm::vec4> mSSAOKernel;
+	std::vector<glm::vec4> mSSAONoise;
 
 	const std::vector<glm::vec2> mScreenspaceQuadVertexData = {
 		{-1.0f, -1.0f},
@@ -297,18 +297,18 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			float scale = (float)i / g_ssao::kernelSize;
 			// lerp
 			scale = 0.1 + scale*scale * (1.0 - 0.1);
-			sample *= scale;
 
-			mSSAOKernel.push_back(sample);
+			mSSAOKernel.push_back(glm::vec4(sample * scale, 0.0f));
 		}
 
 		// Create a rotation vectors for the noise texture
 		mSSAONoise.reserve(g_ssao::noiseSize);
 		for (size_t i = 0; i < g_ssao::noiseSize; i++) {
-			glm::vec3 noise(
+			glm::vec4 noise(
 				range(randomEngine) * 2.0 - 1.0,
 				range(randomEngine) * 2.0 - 1.0,
 				// We want to rotate around the z axis (up)
+				0.0f,
 				0.0f
 			);
 
