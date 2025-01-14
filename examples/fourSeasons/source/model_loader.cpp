@@ -79,11 +79,10 @@ class model_loader_app : public avk::invokee
 
 	DoFKernelBufferStruct mDoFKernelBufferStruct;
 
-
-	
 	//for SSAO
 	struct SSAOData {
 		int mEnabled = 0;
+		int mBlur = 1;
 	};
 
 	avk::buffer mSSAOKernel;
@@ -125,6 +124,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mDoFSliderDistanceOutOfFocus = slider_container<float>{ "Dist", 0.05f, 0.0f, 0.2, [this](float val) { this->mDoFDistanceOutOfFocus = val; } };
 		mDoFEnabledCheckbox = check_box_container{ "Enabled", false, [this](bool val) { this->mDoFEnabled = val; } };
 		mDoFModeCombo = combo_box_container{ "Mode", { "blur", "near", "center", "far" }, 0, [this](std::string val) { this->mDoFMode = val; } };
+		//ssao
+		mSSAOEnabledCheckbox = check_box_container{ "Enabled", false, [&](bool val) { mSSAOEnabled = val; } };
+		mSSAOBlurCheckbox = check_box_container{ "Blur", true, [&](bool val) { mSSAOBlur = val; } };
 	}
 
 	void init_skybox()
@@ -460,9 +462,6 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto colorAttachmentSSAO = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto colorAttachmentDescriptionSSAO = avk::attachment::declare_for(colorAttachmentSSAO.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
 
-		auto colorAttachmentSSAOBlur = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
-		auto colorAttachmentDescriptionSSAOBlur = avk::attachment::declare_for(colorAttachmentSSAOBlur.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
-
 		auto colorAttachmentNearDof = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto colorAttachmentDescriptionNearDof = avk::attachment::declare_for(colorAttachmentRaster.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
 
@@ -485,12 +484,6 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::make_vector(colorAttachmentSSAO)
 		);
 		mImageSamplerSSAOFBColor = avk::context().create_image_sampler(mSSAOFramebuffer->image_view_at(0), sampler);
-
-		mSSAOBlurFramebuffer = avk::context().create_framebuffer(
-			{ colorAttachmentDescriptionSSAOBlur },
-			avk::make_vector(colorAttachmentSSAOBlur)
-		);
-		mImageSamplerSSAOBlurFBColor = avk::context().create_image_sampler(mSSAOBlurFramebuffer->image_view_at(0), sampler);
 
 		mDofNearFieldFB = avk::context().create_framebuffer(
 			{ colorAttachmentDescriptionNearDof },
@@ -651,7 +644,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// We'll render to the framebuffer
 			avk::context().create_renderpass(
 			{
-				colorAttachmentDescriptionRaster
+				colorAttachmentDescriptionSSAO
 			}),
 			
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
@@ -856,7 +849,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				mDoFSliderDistanceOutOfFocus->invokeImGui();
 				ImGui::Separator();
 				ImGui::Text("Screen-Space Ambient Occlusion (SSAO)");
-				ImGui::Checkbox("Enabled", &mSSAOEnabled);
+				mSSAOEnabledCheckbox->invokeImGui();
+				mSSAOBlurCheckbox->invokeImGui();
 				ImGui::Separator();
 				
 				ImGui::DragFloat3("Scale", glm::value_ptr(mScale), 0.005f, 0.01f, 10.0f);
@@ -923,7 +917,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto dofCmd = mDoFBuffer->fill(&dofData, 0);
 		
 		SSAOData ssaoData;
-		ssaoData.mEnabled = static_cast<int>(mSSAOEnabled);
+		ssaoData.mEnabled = mSSAOEnabled;
+		ssaoData.mBlur = mSSAOBlur;
 		auto ssaoCmd = mSSAOBuffer->fill(&ssaoData, 0);
 
 		auto emptyToo2 = mDoFKernelBuffer->fill(&mDoFKernelBufferStruct, 0);
@@ -1267,11 +1262,6 @@ private: // v== Member variables ==v
 	avk::buffer mSSAOBuffer;
 	avk::image_sampler mImageSamplerSSAOFBColor;
 
-	//2.5 SSAO 1.5 pass (blur to remove artifacts)
-	avk::graphics_pipeline mPipelineSSAOBlur;
-	avk::framebuffer mSSAOBlurFramebuffer;
-	avk::image_sampler mImageSamplerSSAOBlurFBColor;
-
 	//3. DoF 1. pass (renders near field into mDofNearFieldFB)
 	avk::graphics_pipeline mPipelineDofNear;//renders into mDofNearFieldFB
 	avk::framebuffer mDofNearFieldFB;//Dof1 renders into this
@@ -1311,6 +1301,9 @@ private: // v== Member variables ==v
 	std::optional<check_box_container> mDoFEnabledCheckbox;
 	std::optional<combo_box_container> mDoFModeCombo;
 
+	std::optional<check_box_container> mSSAOEnabledCheckbox;
+	std::optional<check_box_container> mSSAOBlurCheckbox;
+
 	//depth of field data
 	float mDoFFocus = 0.8f;
 	float mDoFFocusRange = 0.1f;
@@ -1319,7 +1312,9 @@ private: // v== Member variables ==v
 	std::string mDoFMode = "blur";
 
 	// SSAO data
-	bool mSSAOEnabled = true;
+	int mSSAOEnabled = 0;
+	int mSSAOBlur = 1;
+
 
 	const float mScaleSkybox = 100.f;
 	const glm::mat4 mModelMatrixSkybox = glm::scale(glm::vec3(mScaleSkybox));

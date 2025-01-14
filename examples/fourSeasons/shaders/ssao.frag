@@ -9,12 +9,17 @@ layout(set = 0, binding = 1) uniform sampler2D depthTexture;
 layout(set = 0, binding = 2) uniform uniformSSAO
 {
     int enabled;
+    int blur;
 } SSAO;
 
 void main() {
     if (SSAO.enabled == 1) {
-        fs_out = texture(screenTexture, texCoord);
+        //fs_out = texture(screenTexture, texCoord);
+        fs_out = vec4(0.0, 0.0, 1.0, 1.0);
+        if (SSAO.blur == 1) {
+            fs_out = vec4(0.0, 1.0, 0.0, 1.0);
+        }
     } else {
-        fs_out = texture(screenTexture, texCoord);
+        fs_out = vec4(1.0, 0.0, 0.0, 1.0);
     }
 }
