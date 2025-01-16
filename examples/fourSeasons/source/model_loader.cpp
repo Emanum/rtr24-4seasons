@@ -125,8 +125,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mDoFEnabledCheckbox = check_box_container{ "Enabled", false, [this](bool val) { this->mDoFEnabled = val; } };
 		mDoFModeCombo = combo_box_container{ "Mode", { "blur", "near", "center", "far" }, 0, [this](std::string val) { this->mDoFMode = val; } };
 		//ssao
-		mSSAOEnabledCheckbox = check_box_container{ "Enabled", false, [&](bool val) { mSSAOEnabled = val; } };
-		mSSAOBlurCheckbox = check_box_container{ "Blur", true, [&](bool val) { mSSAOBlur = val; } };
+		mSSAOEnableCheckbox = check_box_container{ "Enable", true, [&](bool val) { mSSAOEnabled = val;} };
+		mSSAOBlurCheckbox = check_box_container{ "Blur", false, [&](bool val) { mSSAOBlur = val; } };
 	}
 
 	void init_skybox()
@@ -849,7 +849,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				mDoFSliderDistanceOutOfFocus->invokeImGui();
 				ImGui::Separator();
 				ImGui::Text("Screen-Space Ambient Occlusion (SSAO)");
-				mSSAOEnabledCheckbox->invokeImGui();
+				mSSAOEnableCheckbox->invokeImGui();
 				mSSAOBlurCheckbox->invokeImGui();
 				ImGui::Separator();
 				
@@ -1301,7 +1301,7 @@ private: // v== Member variables ==v
 	std::optional<check_box_container> mDoFEnabledCheckbox;
 	std::optional<combo_box_container> mDoFModeCombo;
 
-	std::optional<check_box_container> mSSAOEnabledCheckbox;
+	std::optional<check_box_container> mSSAOEnableCheckbox;
 	std::optional<check_box_container> mSSAOBlurCheckbox;
 
 	//depth of field data
