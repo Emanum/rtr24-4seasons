@@ -20,6 +20,9 @@
 #include "auto_vk_toolkit.hpp"
 #include "auto_vk_toolkit.hpp"
 
+constexpr float CAM_NEAR = 0.3f;
+constexpr float CAM_FAR = 1000.0f;
+
 namespace g_ssao {
 	constexpr size_t kernelSize = 64;
 	constexpr size_t noiseSize = 16;
@@ -796,8 +799,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		// Add the cameras to the composition (and let them handle updates)
 		mOrbitCam.set_translation({ 0.0f, 0.0f, 0.0f });
 		mQuakeCam.set_translation({ 0.0f, 0.0f, 0.0f });
-		mOrbitCam.set_perspective_projection(glm::radians(30.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
-		mQuakeCam.set_perspective_projection(glm::radians(30.0f), avk::context().main_window()->aspect_ratio(), 0.3f, 1000.0f);
+		mOrbitCam.set_perspective_projection(glm::radians(30.0f), avk::context().main_window()->aspect_ratio(), CAM_NEAR, CAM_FAR);
+		mQuakeCam.set_perspective_projection(glm::radians(30.0f), avk::context().main_window()->aspect_ratio(), CAM_NEAR, CAM_FAR);
 		avk::current_composition()->add_element(mOrbitCam);
 		avk::current_composition()->add_element(mQuakeCam);
 		mQuakeCam.disable();

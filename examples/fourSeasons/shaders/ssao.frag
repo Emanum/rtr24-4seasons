@@ -12,14 +12,22 @@ layout(set = 0, binding = 2) uniform uniformSSAO
     int blur;
 } SSAO;
 
+float near = 0.3f;  
+float far = 1000.0f;
+
+// https://stackoverflow.com/questions/51108596/linearize-depth
+float linearizeDepth(float depth) {
+    return (near * far) / (far + depth * (near - far));
+}
+
 void main() {
     if (SSAO.enabled == 1) {
-        //fs_out = texture(screenTexture, texCoord);
-        fs_out = vec4(0.0, 0.0, 1.0, 1.0);
+        float linDepth = linearizeDepth(texture(depthTexture, texCoord).r);
+        fs_out = vec4(1.0, 0.0, 0.0, 1.0) * linDepth;
         if (SSAO.blur == 1) {
-            fs_out = vec4(0.0, 1.0, 0.0, 1.0);
+            fs_out = vec4(0.0, 1.0, 0.0, 1.0) * linDepth;
         }
-    } else {
-        fs_out = vec4(1.0, 0.0, 0.0, 1.0);
     }
+    
+    fs_out = texture(screenTexture, texCoord);
 }
