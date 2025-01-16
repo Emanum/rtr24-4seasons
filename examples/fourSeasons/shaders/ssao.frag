@@ -20,6 +20,13 @@ float linearizeDepth(float depth) {
     return (near * far) / (far + depth * (near - far));
 }
 
+vec3 posFromDepth(float linDepth) {
+    float x = texCoord.x * 2.0 - 1.0;
+    float y = (1.0 - texCoord.y) * 2.0 - 1.0;
+    vec4 projPos = vec4(x, y, linDepth, 1.0f);
+    return vec3(0,0,0);
+}
+
 void main() {
     if (SSAO.enabled == 1) {
         float linDepth = linearizeDepth(texture(depthTexture, texCoord).r);
