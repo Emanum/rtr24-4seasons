@@ -122,11 +122,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mDoFSliderFocus = slider_container<float>{ "Focus", 0.8f, 0.0f, 1, [this](float val) { this->mDoFFocus = val; } };
 		mDoFSliderFocusRange = slider_container<float>{ "Range", 0.01f, 0.0f, 0.1, [this](float val) { this->mDoFFocusRange = val; } };
 		mDoFSliderDistanceOutOfFocus = slider_container<float>{ "Dist", 0.05f, 0.0f, 0.2, [this](float val) { this->mDoFDistanceOutOfFocus = val; } };
-		mDoFEnabledCheckbox = check_box_container{ "Enabled", false, [this](bool val) { this->mDoFEnabled = val; } };
+		mDoFEnabledCheckbox = check_box_container{ "Enabled##1", false, [this](bool val) { this->mDoFEnabled = val; } };
 		mDoFModeCombo = combo_box_container{ "Mode", { "blur", "near", "center", "far" }, 0, [this](std::string val) { this->mDoFMode = val; } };
 		//ssao
-		mSSAOEnableCheckbox = check_box_container{ "Enable", true, [&](bool val) { mSSAOEnabled = val;} };
-		mSSAOBlurCheckbox = check_box_container{ "Blur", false, [&](bool val) { mSSAOBlur = val; } };
+		mSSAOEnabledCheckbox = check_box_container{ "Enabled##2", false, [&](bool val) { mSSAOEnabled = val; } };
+		mSSAOBlurCheckbox = check_box_container{ "Blur", true, [&](bool val) { mSSAOBlur = val; } };
 	}
 
 	void init_skybox()
@@ -849,7 +849,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				mDoFSliderDistanceOutOfFocus->invokeImGui();
 				ImGui::Separator();
 				ImGui::Text("Screen-Space Ambient Occlusion (SSAO)");
-				mSSAOEnableCheckbox->invokeImGui();
+				mSSAOEnabledCheckbox->invokeImGui();
 				mSSAOBlurCheckbox->invokeImGui();
 				ImGui::Separator();
 				
@@ -1301,7 +1301,7 @@ private: // v== Member variables ==v
 	std::optional<check_box_container> mDoFEnabledCheckbox;
 	std::optional<combo_box_container> mDoFModeCombo;
 
-	std::optional<check_box_container> mSSAOEnableCheckbox;
+	std::optional<check_box_container> mSSAOEnabledCheckbox;
 	std::optional<check_box_container> mSSAOBlurCheckbox;
 
 	//depth of field data
