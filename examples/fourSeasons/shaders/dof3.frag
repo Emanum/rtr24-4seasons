@@ -62,7 +62,18 @@ void main() {
             
             vec4 centerValue = texture(centerTexture, texCoord);
             
-            fs_out = nearBlur + farBlur + centerValue;
+            //now that we bleeded the near field we have the situation that there are pixels that are near and far
+            //this leads to a problem where when blending them we adding power to the image (so it gets brighter)
+            //to fix this we need to subtract the near field from the far field
+            //the result is that we only have the far field left
+            //this is the same as the near field being black and the far field being white
+            //so we can use the near field as a mask
+            
+            
+            
+            vec4 blend = nearBlur + farBlur + centerValue;
+            //cap blend to 1
+            fs_out = min(blend, vec4(1.0));
         }
     } else {
         fs_out = texture(ssaoTexture, texCoord);
