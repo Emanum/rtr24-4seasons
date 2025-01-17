@@ -500,19 +500,28 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		
 		mDoFKernelBufferStruct = { .gaussianKernel= init_gaussian_kernel(3), .bokehKernel= init_bokeh_kernel() };
 		//try zero initialization isntead
-		mDoFKernelBufferStruct = {.gaussianKernel = std::vector<glm::vec4>(49, glm::vec4(0)), .bokehKernel = std::vector<glm::vec4>(48, glm::vec4(0))};
-		//calculate the size of the buffer
-		size_t bufferSize = mDoFKernelBufferStruct.gaussianKernel.size() * sizeof(glm::vec4) + mDoFKernelBufferStruct.bokehKernel.size() * sizeof(glm::vec4);
-		mDoFKernelBuffer = avk::context().create_buffer(
-			avk::memory_usage::host_coherent, {},
-			avk::storage_buffer_meta::create_from_size(bufferSize)
+		// mDoFKernelBufferStruct = {.gaussianKernel = std::vector<glm::vec4>(49, glm::vec4(0)), .bokehKernel = std::vector<glm::vec4>(48, glm::vec4(0))};
+		mDoFKernelBufferGaussian = avk::context().create_buffer(
+			avk::memory_usage::device, {},
+			avk::storage_buffer_meta::create_from_data(mDoFKernelBufferStruct.gaussianKernel)
 		);
 		// Submit the Vertex Buffer fill command to the device:
 		auto fence = avk::context().record_and_submit_with_fence({
-			mDoFKernelBuffer->fill(&mDoFKernelBufferStruct, 0)
+			mDoFKernelBufferGaussian->fill(mDoFKernelBufferStruct.gaussianKernel.data(), 0)
 		}, *mQueue);
 		// Wait on the host until the device is done:
 		fence->wait_until_signalled();
+
+		mDoFKernelBufferBokeh = avk::context().create_buffer(
+			avk::memory_usage::device, {},
+			avk::storage_buffer_meta::create_from_data(mDoFKernelBufferStruct.bokehKernel)
+		);
+		// Submit the Vertex Buffer fill command to the device:
+		auto fence2 = avk::context().record_and_submit_with_fence({
+			mDoFKernelBufferBokeh->fill(mDoFKernelBufferStruct.bokehKernel.data(), 0)
+		}, *mQueue);
+		// Wait on the host until the device is done:
+		fence2->wait_until_signalled();
 		
 		
 		//Create Vertex Buffer for Screenspace Quad
@@ -524,11 +533,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::vertex_buffer_meta::create_from_data(mScreenspaceQuadVertexData)
 			);
 			// Submit the Vertex Buffer fill command to the device:
-			auto fence = avk::context().record_and_submit_with_fence({
+			auto fence3 = avk::context().record_and_submit_with_fence({
 				mVertexBufferScreenspace->fill(mScreenspaceQuadVertexData.data(), 0)
 			}, *mQueue);
 			// Wait on the host until the device is done:
-			fence->wait_until_signalled();
+			fence3->wait_until_signalled();
 
 			mIndexBufferScreenspace = avk::context().create_buffer(
 				avk::memory_usage::device, {},
@@ -716,7 +725,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(0, 3, mImageSamplerDofFarColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
 			avk::descriptor_binding(0, 5, mDoFBuffer),
-			avk::descriptor_binding(1, 0, mDoFKernelBuffer)
+			avk::descriptor_binding(1, 0, mDoFKernelBufferGaussian),
+			avk::descriptor_binding(1, 1, mDoFKernelBufferBokeh)
+
 		);
 
 		
@@ -887,7 +898,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		ssaoData.mEnabled = static_cast<int>(mSSAOEnabled);
 		auto ssaoCmd = mSSAOBuffer->fill(&ssaoData, 0);
 
-		auto emptyToo2 = mDoFKernelBuffer->fill(&mDoFKernelBufferStruct, 0);
+		// auto emptyToo2 = mDoFKernelBuffer->fill(&mDoFKernelBufferStruct, 0);
 	}
 
 	void render() override
@@ -1067,7 +1078,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					avk::descriptor_binding(0, 3, mImageSamplerDofFarColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 5, mDoFBuffer),
-					avk::descriptor_binding(1, 0, mDoFKernelBuffer)
+					avk::descriptor_binding(1, 0, mDoFKernelBufferGaussian),
+					avk::descriptor_binding(1, 1, mDoFKernelBufferBokeh)
 				})),
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			)),
@@ -1247,7 +1259,9 @@ private: // v== Member variables ==v
 	avk::graphics_pipeline mPipelineDofFinal;//renders directly to the screen
 	
 	avk::buffer mDoFBuffer;
-	avk::buffer mDoFKernelBuffer;
+	avk::buffer mDoFKernelBufferGaussian;//gaussian
+	avk::buffer mDoFKernelBufferBokeh;
+
 
 	//general screenspace quad
 	avk::buffer mVertexBufferScreenspace;

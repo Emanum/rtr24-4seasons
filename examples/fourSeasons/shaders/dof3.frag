@@ -22,11 +22,15 @@ layout (set = 0, binding = 5) uniform uniformDoF
 const float kernel2[9] = float[](0.027, 0.065, 0.121, 0.194, 0.227, 0.194, 0.121, 0.065, 0.027);
 
 
-layout(set = 1, binding = 0) buffer UniformBufferObject
+layout(set = 1, binding = 0) buffer StorageBufferObjectGaussian
 {
     vec4 gaussianKernel[49];
+} gaussianKernel;
+
+layout(set = 1, binding = 1) buffer StorageBufferObjectBokeh
+{
     vec4 bokehKernel[48];
-} kernel;
+} bokehKernel;
 
 
 void main() {
