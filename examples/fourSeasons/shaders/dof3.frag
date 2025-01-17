@@ -4,9 +4,9 @@ layout (location = 0) in vec2 texCoord;
 layout (location = 0) out vec4 fs_out;
 
 layout (set = 0, binding = 0) uniform sampler2D ssaoTexture;
-layout (set = 0, binding = 1) uniform sampler2D nearTexture;
-layout (set = 0, binding = 2) uniform sampler2D centerTexture;
-layout (set = 0, binding = 3) uniform sampler2D farTexture;
+layout (set = 0, binding = 1) uniform sampler2D nearTexture;//does not contain color value instead only white for near field and black for not near field
+layout (set = 0, binding = 2) uniform sampler2D centerTexture;//already contains color value
+layout (set = 0, binding = 3) uniform sampler2D farTexture;//already contains color value
 layout (set = 0, binding = 4) uniform sampler2D depthTexture;
 layout (set = 0, binding = 5) uniform uniformDoF
 {
@@ -33,7 +33,9 @@ layout(set = 1, binding = 1) buffer StorageBufferObjectBokeh
 void main() {
     if (DoF.enabled == 1){
         if (DoF.mode == 1) {//near field
-            fs_out = texture(nearTexture, texCoord);
+            vec4 og_value = texture(ssaoTexture, texCoord);
+            vec4 near_value = texture(nearTexture, texCoord); //(near -> (1,1,1) not near -> (0,0,0)) so we can use it as a mask
+            fs_out = og_value * near_value;
         } else if (DoF.mode == 2) {//center field
             fs_out = texture(centerTexture, texCoord);
         } else if (DoF.mode == 3) {//far field
@@ -46,7 +48,9 @@ void main() {
             //integer of the gaussian kernel (x,y) are the coordinates of the kernel, z is the weight
             for (int i = 0; i < 49; i++){
               vec2 offset = vec2( gaussianKernel.gaussianKernel[i].x / screenDimensions.x,gaussianKernel.gaussianKernel[i].y / screenDimensions.y);
-              nearBlur += texture(nearTexture, texCoord + offset) * gaussianKernel.gaussianKernel[i].z ;
+              vec4 amount = texture(nearTexture, texCoord + offset) * gaussianKernel.gaussianKernel[i].z;
+              vec4 og_value = texture(ssaoTexture, texCoord + offset);
+              nearBlur += amount * og_value;
             }
                     
             vec4 farBlur = vec4(0.0);

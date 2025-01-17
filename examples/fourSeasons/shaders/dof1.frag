@@ -43,5 +43,5 @@ void main() {
     depthVis = max(0.0, depthVis);
     depthVis = min(1.0, depthVis);
 
-    fs_out = mix(vec4(0, 0, 0, 1), texture(screenTexture, texCoord), depthVis);
+    fs_out = mix(vec4(0, 0, 0, 1), vec4(1, 1, 1, 1), depthVis);
 }
