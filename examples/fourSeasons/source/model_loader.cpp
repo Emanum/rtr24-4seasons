@@ -190,7 +190,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	void init_scene()
 	{
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/SimpleScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/SimpleScene3.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -296,8 +296,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 	void init_ssao_data()
 	{
-		std::vector<glm::vec4> kernel(g_ssao::kernelSize);
-		std::vector<glm::vec4> noise(g_ssao::noiseSize);
+		std::vector<glm::vec4> kernel;
+		std::vector<glm::vec4> noise;
+		kernel.reserve(g_ssao::kernelSize);
+		noise.reserve(g_ssao::noiseSize);
 		std::uniform_real_distribution<float> range(0.0, 1.0);
 		std::mt19937 randomEngine;
 		// Generate samples in a hemisphere
@@ -319,13 +321,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		}
 
 		mSSAOKernel = avk::context().create_buffer(
-			avk::memory_usage::device, {},
+			avk::memory_usage::host_coherent, {},
 			avk::uniform_buffer_meta::create_from_data(kernel)
 		);
-		avk::context().record_and_submit_with_fence(
-			{ mSSAOKernel->fill(kernel.data(), 0) },
-			*mQueue
-		)->wait_until_signalled();
+		mSSAOKernel->fill(kernel.data(), 0);
 
 		// Create a rotation vectors for the noise texture
 		for (size_t i = 0; i < g_ssao::noiseSize; i++) {
@@ -341,7 +340,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		auto noiseImage = avk::context().create_image(
 			4, 4, vk::Format::eR32G32B32A32Sfloat,
-			1, avk::memory_usage::device, avk::image_usage::general_read_only_image
+			1, avk::memory_usage::device, avk::image_usage::general_color_attachment
 		);
 		auto noiseBuffer = avk::context().create_buffer(
 			avk::memory_usage::device, {},
@@ -681,7 +680,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
 			avk::descriptor_binding(0, 0, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
-			avk::descriptor_binding(0, 2, mSSAOBuffer)
+			avk::descriptor_binding(0, 2, mImageSamplerRasterFBPosition->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 3, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 4, mSSAONoiseTexture->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 5, mSSAOBuffer),
+			avk::descriptor_binding(0, 6, mSSAOKernel),
+			avk::descriptor_binding(0, 7, mViewProjBuffer)
 		);
 
 		mPipelineDofNear = avk::context().create_graphics_pipeline_for(
@@ -1053,7 +1057,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::command::bind_descriptors(mPipelineSSAO->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 					avk::descriptor_binding(0, 0, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 2, mSSAOBuffer)
+					avk::descriptor_binding(0, 2, mImageSamplerRasterFBPosition->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 3, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 4, mSSAONoiseTexture->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 5, mSSAOBuffer),
+					avk::descriptor_binding(0, 6, mSSAOKernel),
+					avk::descriptor_binding(0, 7, mViewProjBuffer)
 				})),
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			)),
