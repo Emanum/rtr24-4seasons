@@ -31,8 +31,7 @@ layout(set = 1, binding = 1) buffer StorageBufferObjectBokeh
 
 
 void main() {
-    if (DoF.enabled == 1)
-    {
+    if (DoF.enabled == 1){
         if (DoF.mode == 1) {//near field
             fs_out = texture(nearTexture, texCoord);
         } else if (DoF.mode == 2) {//center field
@@ -40,21 +39,26 @@ void main() {
         } else if (DoF.mode == 3) {//far field
             fs_out = texture(farTexture, texCoord);
         } else if (DoF.mode == 0) {//blur
-           //apply gaussian blur to near field
-           vec4 nearBlur = vec4(0.0);
-           vec4 farBlur = vec4(0.0);
+            //apply gaussian blur to near field
+            vec4 nearBlur = vec4(0.0);
             
-           ivec2 screenDimensions = textureSize(nearTexture,0);//show all have the same size
-           //interate of the gaussian kernel (x,y) are the coordinates of the kernel, z is the weight
-           for (int i = 0; i < 49; i++)
-          {
+            ivec2 screenDimensions = textureSize(nearTexture,0);//show all have the same size
+            //integer of the gaussian kernel (x,y) are the coordinates of the kernel, z is the weight
+            for (int i = 0; i < 49; i++){
               vec2 offset = vec2( gaussianKernel.gaussianKernel[i].x / screenDimensions.x,gaussianKernel.gaussianKernel[i].y / screenDimensions.y);
               nearBlur += texture(nearTexture, texCoord + offset) * gaussianKernel.gaussianKernel[i].z ;
-              farBlur += texture(farTexture, texCoord + offset) * gaussianKernel.gaussianKernel[i].z;
-          }
-          vec4 centerValue = texture(centerTexture, texCoord);
-
-          fs_out = nearBlur + farBlur + centerValue;
+            }
+                    
+            vec4 farBlur = vec4(0.0);
+            for (int i = 0; i < 48; i++){
+                vec2 offset = vec2(bokehKernel.bokehKernel[i].x / screenDimensions.x,bokehKernel.bokehKernel[i].y / screenDimensions.y);
+                farBlur += texture(farTexture, texCoord + offset) * bokehKernel.bokehKernel[i].z;
+            }
+            farBlur = farBlur / 48.0;
+            
+            vec4 centerValue = texture(centerTexture, texCoord);
+            
+            fs_out = nearBlur + farBlur + centerValue;
         }
     } else {
         fs_out = texture(ssaoTexture, texCoord);
