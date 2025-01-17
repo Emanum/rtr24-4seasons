@@ -68,8 +68,21 @@ layout (location = 1) in vec3 normalWS;
 layout (location = 2) in vec2 texCoord;
 layout (location = 3) flat in int materialIndex;
 layout (location = 4) in float fragDepth;
+layout (location = 5) in vec3 pos;
+layout (location = 6) in vec3 normal;
 
-layout (location = 0) out vec4 fs_out;
+layout (location = 0) out vec4 gAlbedo;
+layout (location = 1) out vec4 gPosition;
+layout (location = 2) out vec4 gNormal;
+
+
+float near = 0.3f;  
+float far = 1000.0f;
+
+// https://stackoverflow.com/questions/51108596/linearize-depth
+float linearizeDepth(float depth) {
+    return (near * far) / (far + depth * (near - far));
+}
 
 
 void main() 
@@ -78,12 +91,16 @@ void main()
 
 	int diffuseTexIndex = matSsbo.materials[matIndex].mDiffuseTexIndex;
     vec3 color = texture(textures[diffuseTexIndex], texCoord).rgb;
-	
-	float ambient = 0.1;
 	vec3 diffuse = matSsbo.materials[matIndex].mDiffuseReflectivity.rgb;
+	
+	/*
+	float ambient = 0.1;
 	vec3 toLight = normalize(vec3(1.0, 1.0, 0.5));
 	vec3 illum = vec3(ambient) + diffuse * max(0.0, dot(normalize(normalWS), toLight));
 	color *= illum;
+	*/
 	
-	fs_out = vec4(color, 1.0);
+	gAlbedo = vec4(color * diffuse, 1.0);
+	gPosition = vec4(pos, linearizeDepth(fragDepth));
+	gNormal = vec4(normalize(normal) * 0.5 + 0.5, 1.0);
 }

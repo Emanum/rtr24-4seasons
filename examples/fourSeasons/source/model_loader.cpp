@@ -51,6 +51,12 @@ class model_loader_app : public avk::invokee
 		int mMaterialIndex;
 	};
 
+	//for SSAO/GBuffer
+	struct vp_matrices {
+		glm::mat4 mViewMatrix;
+		glm::mat4 mProjectionMatrix;
+	};
+
 	//for skybox
 	struct view_projection_matrices {
 		glm::mat4 mProjectionMatrix;
@@ -273,6 +279,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		}, *mQueue);
 		matFence->wait_until_signalled();
 
+		mViewProjBuffer = avk::context().create_buffer(
+			avk::memory_usage::host_coherent, {},
+			avk::uniform_buffer_meta::create_from_data(vp_matrices())
+		);
+
 		// Create a buffer for the transformation matrices in a host coherent memory region (one for each frame in flight):
 		for (int i = 0; i < 10; ++i) { // Up to 10 concurrent frames can be configured through the UI.
 			mViewProjBuffers[i] = avk::context().create_buffer(
@@ -462,9 +473,17 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto depthAttachmentRaster = avk::context().create_depth_image_view(avk::context().create_depth_image(r.x, r.y, vk::Format::eD32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_depth_stencil_attachment));
 		auto depthAttachmentDescription = avk::attachment::declare_for(depthAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::depth_stencil_attachment_optimal), avk::usage::depth_stencil, avk::on_store::store);
 
+		//For G-Buffer we also need some more data
+		auto positionAttachmentRaster = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR32G32B32A32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		auto positionAttachmentDescription = avk::attachment::declare_for(positionAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(1), avk::on_store::store);
+		auto normalsAttachmentRaster = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		auto normalsAttachmentDescription = avk::attachment::declare_for(normalsAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(2), avk::on_store::store);
+
+		//SSAO
 		auto colorAttachmentSSAO = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto colorAttachmentDescriptionSSAO = avk::attachment::declare_for(colorAttachmentSSAO.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
 
+		//DOF
 		auto colorAttachmentNearDof = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto colorAttachmentDescriptionNearDof = avk::attachment::declare_for(colorAttachmentRaster.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
 
@@ -474,13 +493,17 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto colorAttachmentFarDof = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto colorAttachmentDescriptionFarDof = avk::attachment::declare_for(colorAttachmentRaster.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
 		
+
+
 		mRasterizerFramebuffer = avk::context().create_framebuffer(
-			{ colorAttachmentDescriptionRaster, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
-			avk::make_vector( colorAttachmentRaster, depthAttachmentRaster )
+			{ colorAttachmentDescriptionRaster, positionAttachmentDescription, normalsAttachmentDescription, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
+			avk::make_vector( colorAttachmentRaster, positionAttachmentRaster, normalsAttachmentRaster, depthAttachmentRaster )
 		);
 		auto sampler = avk::context().create_sampler(avk::filter_mode::trilinear, avk::border_handling_mode::clamp_to_edge, 0);
 		mImageSamplerRasterFBColor = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(0), sampler);
-		mImageSamplerRasterFBDepth = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(1), sampler);
+		mImageSamplerRasterFBPosition = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(1), sampler);
+		mImageSamplerRasterFBNormals = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(2), sampler);
+		mImageSamplerRasterFBDepth = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(3), sampler);
 
 		mSSAOFramebuffer = avk::context().create_framebuffer(
 			{ colorAttachmentDescriptionSSAO }, 
@@ -507,7 +530,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mImageSamplerDofFarColor = avk::context().create_image_sampler(mDofFarFieldFB->image_view_at(0), sampler);
 		
 		
-		//Create Buffer for DoF effect
+		//Create Buffer and Data for Screenspace effects
 		mDoFBuffer = avk::context().create_buffer(
 			avk::memory_usage::host_coherent, {},
 			avk::uniform_buffer_meta::create_from_data(DoFData())
@@ -591,6 +614,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::context().create_renderpass(
 			{
 				colorAttachmentDescriptionRaster,
+				positionAttachmentDescription,
+				normalsAttachmentDescription,
 				depthAttachmentDescription
 			}),
 			
@@ -603,8 +628,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		// Create our rasterization graphics pipeline with the required configuration:
 		mRasterizePipeline = avk::context().create_graphics_pipeline_for(
 			// Specify which shaders the pipeline consists of:
-			avk::vertex_shader("shaders/transform_and_pass_pos_nrm_uv.vert"),
-			avk::fragment_shader("shaders/diffuse_shading_fixed_lightsource.frag"),
+			avk::vertex_shader("shaders/raster.vert"),
+			avk::fragment_shader("shaders/raster.frag"),
 			// The next 3 lines define the format and location of the vertex shader inputs:
 			// (The dummy values (like glm::vec3) tell the pipeline the format of the respective input)
 			avk::from_buffer_binding(0) -> stream_per_vertex<glm::vec3>() -> to_location(0), // <-- corresponds to vertex shader's inPosition
@@ -618,6 +643,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::context().create_renderpass(
 			{
 				colorAttachmentDescriptionRaster,
+				positionAttachmentDescription,
+				normalsAttachmentDescription,
 				depthAttachmentDescription
 			}),
 				
@@ -627,6 +654,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::push_constant_binding_data { avk::shader_type::vertex, 0, sizeof(transformation_matrices) },
 			avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
 			avk::descriptor_binding(0, 1, mViewProjBuffers[0]),
+			avk::descriptor_binding(0, 2, mViewProjBuffer), //For view/projection matrices
 			avk::descriptor_binding(1, 0, mMaterialBuffer)
 		);
 
@@ -670,7 +698,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// We'll render to the framebuffer
 			avk::context().create_renderpass(
 			{
-				colorAttachmentDescriptionRaster
+				colorAttachmentDescriptionNearDof
 			}),
 					
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
@@ -693,7 +721,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// We'll render to the framebuffer
 			avk::context().create_renderpass(
 			{
-				colorAttachmentDescriptionRaster
+				colorAttachmentDescriptionFarDof
 			}),
 							
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
@@ -716,7 +744,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// We'll render to the framebuffer
 			avk::context().create_renderpass(
 			{
-				colorAttachmentDescriptionRaster
+				colorAttachmentDescriptionCenterDof
 			}),
 							
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
@@ -908,6 +936,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		auto emptyToo = mViewProjBufferSkybox->fill(&viewProjMat2, 0);
 
+		// For Raster step
+		vp_matrices viewProjMat3{
+			projectionMatrix,
+			viewMatrix
+		};
+		auto emptyThree = mViewProjBuffer->fill(&viewProjMat3, 0);
+
 		//DoF
 		DoFData dofData;
 		dofData.mEnabled = mDoFEnabled;
@@ -956,7 +991,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto imageAvailable = mainWnd->consume_current_image_available_semaphore();
 
 		
-		//First renderpass is the main scene into the rasterizerFramebuffer
+		//First renderpass is the main scene into the rasterizerFramebuffer and creation of the gbuffer
 		avk::context().record({
 		avk::command::render_pass(mPipelineSkybox->renderpass_reference(), mRasterizerFramebuffer.as_reference(), avk::command::gather(
 				avk::command::bind_pipeline(mPipelineSkybox.as_reference()),
@@ -973,6 +1008,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::command::bind_descriptors(mRasterizePipeline->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 					avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
 					avk::descriptor_binding(0, 1, mViewProjBuffers[ifi]),
+					avk::descriptor_binding(0, 2, mViewProjBuffer),
 					avk::descriptor_binding(1, 0, mMaterialBuffer),
 				})),
 
@@ -1256,8 +1292,11 @@ private: // v== Member variables ==v
 
 	//1. rasterizer
 	avk::framebuffer mRasterizerFramebuffer;//Rasterizer and skybox render into this
+	avk::buffer mViewProjBuffer;
 	avk::image_sampler mImageSamplerRasterFBColor;
 	avk::image_sampler mImageSamplerRasterFBDepth;
+	avk::image_sampler mImageSamplerRasterFBPosition;
+	avk::image_sampler mImageSamplerRasterFBNormals;
 
 	//2. SSAO 1. pass (create ssao effect)
 	avk::graphics_pipeline mPipelineSSAO;//renders into ssaoFramebuffer
