@@ -344,14 +344,20 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		);
 		auto noiseBuffer = avk::context().create_buffer(
 			avk::memory_usage::device, {},
-			avk::storage_texel_buffer_meta::create_from_data(noise)
+			avk::generic_buffer_meta::create_from_data(noise)
 		);
 		avk::context().record_and_submit_with_fence(
 			{ noiseBuffer->fill(noise.data(), 0) },
 			*mQueue
 		)->wait_until_signalled();
 
-		avk::copy_buffer_to_image(noiseBuffer, noiseImage, avk::layout::color_attachment_optimal);
+		avk::sync::image_memory_barrier(noiseImage.as_reference(), avk::stage::none >> avk::stage::copy,
+			avk::access::none >> avk::access::transfer_read | avk::access::transfer_write).with_layout_transition(
+				avk::layout::undefined >> avk::layout::transfer_dst);
+		avk::copy_buffer_to_image(noiseBuffer, noiseImage.as_reference(), avk::layout::transfer_dst);
+		avk::sync::image_memory_barrier(noiseImage.as_reference(), avk::stage::copy >> avk::stage::transfer,
+			avk::access::transfer_write >> avk::access::none).with_layout_transition(
+				avk::layout::transfer_dst >> avk::layout::shader_read_only_optimal);
 
 		mSSAONoiseTexture = avk::context().create_image_sampler(
 			avk::context().create_image_view(

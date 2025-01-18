@@ -37,18 +37,18 @@ void main() {
         vec3 fragPos = texture(gPosition, texCoord).rgb;
         vec3 normal = normalize(texture(gNormal, texCoord).rgb * 2.0 - 1.0);
 
-        ivec2 screenDim = textureSize(screenTexture, 0);
+        ivec2 screenDim = textureSize(gPosition, 0);
         ivec2 noiseDim = textureSize(ssaoNoise, 0);
         const vec2 noiseUV = vec2(float(screenDim.x) / float(noiseDim.x), float(screenDim.y) / float(noiseDim.y)) * texCoord;
         vec3 rvec = texture(ssaoNoise, noiseUV).rgb * 2.0 - 1.0;
 
         //TBN matrix
         vec3 tangent = normalize(rvec - normal * dot(rvec, normal));
-        vec3 bitangent = cross(normal, tangent);
+        vec3 bitangent = cross(tangent, normal);
         mat3 TBN = mat3(tangent, bitangent, normal);
 
         float occlusion = 0.0f;
-        //const float bias = 0.025f;
+        const float bias = 0.025f;
 
         for (int i = 0; i < NUM_SAMPLES; i++) {
             vec3 samplePos = TBN * kernel.samples[i].xyz;
@@ -59,18 +59,17 @@ void main() {
             offset.xyz /= offset.w;
             offset.xyz = offset.xyz * 0.5f + 0.5f;
 
-            float sampleDepth = texture(gPosition, offset.xy).w;
-            float rangeCheck = abs(fragPos.z - sampleDepth) < RADIUS ? 1.0 : 0.0;
-            occlusion += (sampleDepth <= samplePos.z ? 1.0f : 0.0f) * rangeCheck;
+            float sampleDepth = -texture(gPosition, offset.xy).w;
+            float rangeCheck = smoothstep(0.0f, 1.0f, RADIUS / abs(fragPos.z - sampleDepth));
+            occlusion += (sampleDepth >= samplePos.z + bias ? 1.0f : 0.0f) * rangeCheck;
         }
 
         occlusion = 1.0 - (occlusion / float(NUM_SAMPLES));
         fs_out = vec4(vec3(occlusion), 1.0f);
-        //fs_out = vec4(rvec, 1.0);
 
-        /*if (SSAO.blur == 1) {
-            fs_out = vec4(0.0, 1.0, 0.0, 1.0);
-        }*/
+        if (SSAO.blur == 0) {
+            fs_out = vec4(rvec, 1.0);
+        }
     } else {
         fs_out = texture(screenTexture, texCoord);
     }
