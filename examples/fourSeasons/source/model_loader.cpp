@@ -190,7 +190,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	void init_scene()
 	{
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/SimpleScene3.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/SimpleScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -682,7 +682,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
 			avk::descriptor_binding(0, 2, mImageSamplerRasterFBPosition->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 3, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 4, mSSAONoiseTexture->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 4, mSSAONoiseTexture->as_combined_image_sampler(avk::layout::undefined)),
 			avk::descriptor_binding(0, 5, mSSAOBuffer),
 			avk::descriptor_binding(0, 6, mSSAOKernel),
 			avk::descriptor_binding(0, 7, mViewProjBuffer)
@@ -1059,7 +1059,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 2, mImageSamplerRasterFBPosition->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 3, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 4, mSSAONoiseTexture->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 4, mSSAONoiseTexture->as_combined_image_sampler(avk::layout::undefined)),
 					avk::descriptor_binding(0, 5, mSSAOBuffer),
 					avk::descriptor_binding(0, 6, mSSAOKernel),
 					avk::descriptor_binding(0, 7, mViewProjBuffer)

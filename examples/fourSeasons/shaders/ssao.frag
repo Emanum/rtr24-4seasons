@@ -39,7 +39,7 @@ void main() {
 
         ivec2 screenDim = textureSize(screenTexture, 0);
         ivec2 noiseDim = textureSize(ssaoNoise, 0);
-        const vec2 noiseUV = vec2(float(screenDim.x) / float(noiseDim.x), float(screenDim.y) / float(noiseDim.y));
+        const vec2 noiseUV = vec2(float(screenDim.x) / float(noiseDim.x), float(screenDim.y) / float(noiseDim.y)) * texCoord;
         vec3 rvec = texture(ssaoNoise, noiseUV).rgb * 2.0 - 1.0;
 
         //TBN matrix
@@ -65,13 +65,13 @@ void main() {
         }
 
         occlusion = 1.0 - (occlusion / float(NUM_SAMPLES));
-        //fs_out = vec4(vec3(occlusion), 1.0f);
-        fs_out = vec4(rvec, 1.0);
+        fs_out = vec4(vec3(occlusion), 1.0f);
+        //fs_out = vec4(rvec, 1.0);
 
         /*if (SSAO.blur == 1) {
             fs_out = vec4(0.0, 1.0, 0.0, 1.0);
         }*/
     } else {
-        fs_out = texture(ssaoNoise, texCoord);
+        fs_out = texture(screenTexture, texCoord);
     }
 }
