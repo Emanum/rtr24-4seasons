@@ -19,6 +19,10 @@ layout (set = 0, binding = 2) uniform uniformDoF
     vec3[49] gaussianKernel;
 } DoF;
 
+vec4 near = vec4(1,0,0,1);
+vec4 center = vec4(0,1,0,1);
+vec4 far = vec4(0,0,1,1);
+
 void main() {
     float depth = texture(depthTexture, texCoord).r;
     float lowerBoundCenter = max(DoF.focus - DoF.range, 0);
@@ -26,22 +30,22 @@ void main() {
     float lowerBoundTotalOoF = max(DoF.focus - DoF.range - DoF.distOutOfFocus, 0);
     float upperBoundTotalOoF = min(DoF.focus + DoF.range + DoF.distOutOfFocus,1);
 
-    float near = 1.0f;
-    float notNear = 0.0f;
-
-    float depthVis = 0.0;
+    vec4 depthVis = vec4(0,0,0,1);
 
     if(depth < lowerBoundTotalOoF){
         depthVis = near;
     }else if(depth >= lowerBoundTotalOoF && depth < lowerBoundCenter){
         float percentInNear = (depth - lowerBoundTotalOoF) / (lowerBoundCenter - lowerBoundTotalOoF);
-        depthVis = mix(near, notNear, percentInNear);
-    }else{
-        depthVis = notNear;
+        depthVis = mix(near, center, percentInNear);
+    }else if (depth >= lowerBoundCenter && depth < upperBoundCenter){
+        depthVis = center;
+    } else if(depth >= upperBoundCenter && depth < upperBoundTotalOoF){
+        float percentInFar = (depth - upperBoundCenter) / (upperBoundTotalOoF - upperBoundCenter);
+        depthVis = mix(center, far, percentInFar);
+    }
+    else{
+        depthVis = far;
     }
     
-    depthVis = max(0.0, depthVis);
-    depthVis = min(1.0, depthVis);
-
-    fs_out = mix(vec4(0, 0, 0, 1), vec4(1, 1, 1, 1), depthVis);
+   fs_out = depthVis;
 }

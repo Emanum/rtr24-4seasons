@@ -41,39 +41,39 @@ void main() {
         } else if (DoF.mode == 3) {//far field
             fs_out = texture(farTexture, texCoord);
         } else if (DoF.mode == 0) {//blur
-            //apply gaussian blur to near field
+            //apply gaussian blur entire image
             vec4 nearBlur = vec4(0.0);
             
-            ivec2 screenDimensions = textureSize(nearTexture,0);//show all have the same size
+            ivec2 screenDimensions = textureSize(nearTexture,0);//should all have the same size
             //integer of the gaussian kernel (x,y) are the coordinates of the kernel, z is the weight
             for (int i = 0; i < 49; i++){
-              vec2 offset = vec2( gaussianKernel.gaussianKernel[i].x / screenDimensions.x,gaussianKernel.gaussianKernel[i].y / screenDimensions.y);
-              vec4 amount = texture(nearTexture, texCoord + offset) * gaussianKernel.gaussianKernel[i].z;
+              vec2 offset = vec2( gaussianKernel.gaussianKernel[i].x / screenDimensions.x,gaussianKernel.gaussianKernel[i].y / screenDimensions.y);;
               vec4 og_value = texture(ssaoTexture, texCoord + offset);
-              nearBlur += amount * og_value;
+              nearBlur += og_value * gaussianKernel.gaussianKernel[i].z;
             }
                     
             vec4 farBlur = vec4(0.0);
             for (int i = 0; i < 48; i++){
                 vec2 offset = vec2(bokehKernel.bokehKernel[i].x / screenDimensions.x,bokehKernel.bokehKernel[i].y / screenDimensions.y);
-                farBlur += texture(farTexture, texCoord + offset) * bokehKernel.bokehKernel[i].z;
+                farBlur += texture(ssaoTexture, texCoord + offset) * bokehKernel.bokehKernel[i].z;
             }
             farBlur = farBlur / 48.0;
             
             vec4 centerValue = texture(centerTexture, texCoord);
+ 
+            float near = texture(nearTexture, texCoord).r;
+            float far = texture(nearTexture, texCoord).b;
+            float center = texture(nearTexture, texCoord).g;
+            center = 1 - near - far;
+            far = 1 - near - center;
+            nearBlur = nearBlur * near;
+            farBlur = farBlur * far;
+            vec4 centerBlur = texture(ssaoTexture, texCoord) * center;
+                   
             
-            //now that we bleeded the near field we have the situation that there are pixels that are near and far
-            //this leads to a problem where when blending them we adding power to the image (so it gets brighter)
-            //to fix this we need to subtract the near field from the far field
-            //the result is that we only have the far field left
-            //this is the same as the near field being black and the far field being white
-            //so we can use the near field as a mask
-            
-            
-            
-            vec4 blend = nearBlur + farBlur + centerValue;
+            vec4 blend = nearBlur + farBlur + centerBlur;
             //cap blend to 1
-            fs_out = min(blend, vec4(1.0));
+            fs_out = blend;
         }
     } else {
         fs_out = texture(ssaoTexture, texCoord);
