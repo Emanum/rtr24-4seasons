@@ -1106,14 +1106,21 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		ssaoData.mEnabled = mSSAOEnabled;
 		ssaoData.mBlur = mSSAOBlur;
 		ssaoData.mIllumination = mIllumination;
-		auto ssaoCmd = mSSAOBuffer->fill(&ssaoData, 0);
-
+		auto fence = avk::context().record_and_submit_with_fence({
+			mSSAOBuffer->fill(&ssaoData, 0)
+		}, *mQueue);
+		// Wait on the host until the device is done:
+		fence->wait_until_signalled();
 
 		glm::vec3 camTranslation = mQuakeCam.is_enabled() ? mQuakeCam.translation() : mOrbitCam.translation();
 		glm::vec4 camPosition = glm::vec4(camTranslation, 1.0);
 		CameraData camData;
 		camData.position = camPosition;
-		auto camCmd = mCameraData->fill(&camData, 0);
+		auto fence2 = avk::context().record_and_submit_with_fence({
+			mCameraData->fill(&camData, 0)
+		}, *mQueue);
+		// Wait on the host until the device is done:
+		fence2->wait_until_signalled();
 
 	}
 
