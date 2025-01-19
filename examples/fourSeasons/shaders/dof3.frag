@@ -29,6 +29,29 @@ layout(set = 1, binding = 1) buffer StorageBufferObjectBokeh
     vec4 bokehKernel[48];
 } bokehKernel;
 
+//inverse of the lottes tone mapping
+//convert from SDR to HDR
+vec4 inverse_lottes(vec4 y) {
+    vec3 x = y.rgb;
+     // Parameters for the Lottes tone mapping
+    const float A = 0.22;  // Shoulder strength
+    const float B = 0.30;  // Linear strength
+    const float C = 0.10;  // Linear angle
+    const float D = 0.20;  // Toe strength
+    const float E = 0.01;  // Toe numerator
+    const float F = 0.30;  // Linear white point scale
+
+    // Normalized luminance term
+    vec3 W = vec3(11.2); // Luminance of the white point
+    vec3 numerator = x * (A * W + C * B * W + D * E);
+    vec3 denominator = F * W - x * (A + C * B + D);
+
+    // Reconstruct HDR values
+    vec3 hdr = numerator / max(denominator, 1e-5); // Avoid division by zero
+    vec3 erg_x = max(hdr, vec3(0.0)); // Ensure non-negative HDR values
+    return vec4(erg_x, y.a);
+}
+
 
 void main() {
     if (DoF.enabled == 1){
@@ -47,15 +70,15 @@ void main() {
             ivec2 screenDimensions = textureSize(nearTexture,0);//should all have the same size
             //integer of the gaussian kernel (x,y) are the coordinates of the kernel, z is the weight
             for (int i = 0; i < 49; i++){
-              vec2 offset = vec2( gaussianKernel.gaussianKernel[i].x / screenDimensions.x,gaussianKernel.gaussianKernel[i].y / screenDimensions.y);;
-              vec4 og_value = texture(ssaoTexture, texCoord + offset);
+              vec2 offset = vec2(gaussianKernel.gaussianKernel[i].x / screenDimensions.x,gaussianKernel.gaussianKernel[i].y / screenDimensions.y);;
+              vec4 og_value = inverse_lottes(texture(ssaoTexture, texCoord + offset));
               nearBlur += og_value * gaussianKernel.gaussianKernel[i].z;
             }
                     
             vec4 farBlur = vec4(0.0);
             for (int i = 0; i < 48; i++){
                 vec2 offset = vec2(bokehKernel.bokehKernel[i].x / screenDimensions.x,bokehKernel.bokehKernel[i].y / screenDimensions.y);
-                farBlur += texture(ssaoTexture, texCoord + offset) * bokehKernel.bokehKernel[i].z;
+                farBlur += inverse_lottes(texture(ssaoTexture, texCoord + offset)) * bokehKernel.bokehKernel[i].z;
             }
             farBlur = farBlur / 48.0;
             
