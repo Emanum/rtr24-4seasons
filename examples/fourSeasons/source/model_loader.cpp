@@ -785,8 +785,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(0, 1, mImageSamplerRasterFBPositionWS->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 2, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 3, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 4, mSSAOBuffer),
-			avk::descriptor_binding(0, 5, mCameraData)
+			avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 5, mSSAOBuffer),
+			avk::descriptor_binding(0, 6, mCameraData)
 		);
 
 
@@ -1244,8 +1245,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					avk::descriptor_binding(0, 1, mImageSamplerRasterFBPositionWS->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 2, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 3, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 4, mSSAOBuffer),
-					avk::descriptor_binding(0, 5, mCameraData),
+					avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+					avk::descriptor_binding(0, 5, mSSAOBuffer),
+					avk::descriptor_binding(0, 6, mCameraData),
 				})),
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			))
