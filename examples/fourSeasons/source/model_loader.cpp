@@ -17,9 +17,6 @@
 #include <random>
 
 #include "auto_vk_toolkit.hpp"
-#include "auto_vk_toolkit.hpp"
-#include "auto_vk_toolkit.hpp"
-#include "auto_vk_toolkit.hpp"
 
 constexpr float CAM_NEAR = 0.3f;
 constexpr float CAM_FAR = 1000.0f;
