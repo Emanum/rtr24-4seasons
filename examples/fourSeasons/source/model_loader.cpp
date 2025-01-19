@@ -196,7 +196,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	void init_scene()
 	{
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/fullScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/SimpleScene3.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -489,7 +489,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		//For G-Buffer we also need some more data
 		auto positionAttachmentRaster = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR32G32B32A32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto positionAttachmentDescription = avk::attachment::declare_for(positionAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(1), avk::on_store::store);
-		auto normalsAttachmentRaster = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		auto normalsAttachmentRaster = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR32G32B32A32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto normalsAttachmentDescription = avk::attachment::declare_for(normalsAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(2), avk::on_store::store);
 		auto positionWSAttachmentRaster = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR32G32B32A32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto positionWSAttachmentDescription = avk::attachment::declare_for(positionWSAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(3), avk::on_store::store);
@@ -740,7 +740,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
 			avk::descriptor_binding(0, 0, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_read_only_optimal)),
 			avk::descriptor_binding(0, 2, mImageSamplerRasterFBPosition->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 3, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 4, mSSAONoiseTexture->as_combined_image_sampler(avk::layout::shader_read_only_optimal)),
@@ -785,7 +785,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(0, 1, mImageSamplerRasterFBPositionWS->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 2, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 3, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_read_only_optimal)),
 			avk::descriptor_binding(0, 5, mSSAOBuffer),
 			avk::descriptor_binding(0, 6, mCameraData)
 		);
@@ -811,7 +811,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
 			avk::descriptor_binding(0, 0, mImageSamplerIlluminationFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_read_only_optimal)),
 			avk::descriptor_binding(0, 2, mDoFBuffer)
 		);
 
@@ -854,7 +854,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 							
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
 			avk::descriptor_binding(0, 0, mImageSamplerIlluminationFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_read_only_optimal)),
 			avk::descriptor_binding(0, 2, mDoFBuffer)
 		);
 
@@ -877,7 +877,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 							
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
 			avk::descriptor_binding(0, 0, mImageSamplerIlluminationFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_read_only_optimal)),
 			avk::descriptor_binding(0, 2, mDoFBuffer)
 		);
 		
@@ -905,7 +905,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(0, 1, mImageSamplerDofNearColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 2, mImageSamplerDofCenterColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 3, mImageSamplerDofFarColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+			avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_read_only_optimal)),
 			avk::descriptor_binding(0, 5, mDoFBuffer),
 			avk::descriptor_binding(1, 0, mDoFKernelBufferGaussian),
 			avk::descriptor_binding(1, 1, mDoFKernelBufferBokeh)
@@ -1246,7 +1246,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					avk::descriptor_binding(0, 1, mImageSamplerRasterFBPositionWS->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 2, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 3, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
+					avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 5, mSSAOBuffer),
 					avk::descriptor_binding(0, 6, mCameraData),
 				})),
