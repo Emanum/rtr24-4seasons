@@ -506,35 +506,36 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			{ colorAttachmentDescriptionRaster, positionAttachmentDescription, normalsAttachmentDescription, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
 			avk::make_vector( colorAttachmentRaster, positionAttachmentRaster, normalsAttachmentRaster, depthAttachmentRaster )
 		);
-		auto sampler = avk::context().create_sampler(avk::filter_mode::trilinear, avk::border_handling_mode::clamp_to_edge, 0);
-		mImageSamplerRasterFBColor = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(0), sampler);
-		mImageSamplerRasterFBPosition = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(1), sampler);
-		mImageSamplerRasterFBNormals = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(2), sampler);
-		mImageSamplerRasterFBDepth = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(3), sampler);
+		auto samplerLin = avk::context().create_sampler(avk::filter_mode::trilinear, avk::border_handling_mode::clamp_to_edge, 0);
+		auto samplerNea = avk::context().create_sampler(avk::filter_mode::nearest_neighbor, avk::border_handling_mode::clamp_to_edge, 0);
+		mImageSamplerRasterFBColor = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(0), samplerNea);
+		mImageSamplerRasterFBPosition = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(1), samplerNea);
+		mImageSamplerRasterFBNormals = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(2), samplerNea);
+		mImageSamplerRasterFBDepth = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(3), samplerNea);
 
 		mSSAOFramebuffer = avk::context().create_framebuffer(
 			{ colorAttachmentDescriptionSSAO }, 
 			avk::make_vector(colorAttachmentSSAO)
 		);
-		mImageSamplerSSAOFBColor = avk::context().create_image_sampler(mSSAOFramebuffer->image_view_at(0), sampler);
+		mImageSamplerSSAOFBColor = avk::context().create_image_sampler(mSSAOFramebuffer->image_view_at(0), samplerNea);
 
 		mDofNearFieldFB = avk::context().create_framebuffer(
 			{ colorAttachmentDescriptionNearDof },
 			avk::make_vector(colorAttachmentNearDof)
 		);
-		mImageSamplerDofNearColor = avk::context().create_image_sampler(mDofNearFieldFB->image_view_at(0), sampler);
+		mImageSamplerDofNearColor = avk::context().create_image_sampler(mDofNearFieldFB->image_view_at(0), samplerLin);
 
 		mDofCenterFieldFB = avk::context().create_framebuffer(
 			{ colorAttachmentDescriptionCenterDof },
 			avk::make_vector(colorAttachmentCenterDof)
 		);
-		mImageSamplerDofCenterColor = avk::context().create_image_sampler(mDofCenterFieldFB->image_view_at(0), sampler);
+		mImageSamplerDofCenterColor = avk::context().create_image_sampler(mDofCenterFieldFB->image_view_at(0), samplerLin);
 
 		mDofFarFieldFB = avk::context().create_framebuffer(
 			{ colorAttachmentDescriptionFarDof },
 			avk::make_vector(colorAttachmentFarDof)
 		);
-		mImageSamplerDofFarColor = avk::context().create_image_sampler(mDofFarFieldFB->image_view_at(0), sampler);
+		mImageSamplerDofFarColor = avk::context().create_image_sampler(mDofFarFieldFB->image_view_at(0), samplerLin);
 		
 		
 		//Create Buffer and Data for Screenspace effects

@@ -65,11 +65,7 @@ void main() {
         }
 
         occlusion = 1.0 - (occlusion / float(NUM_SAMPLES));
-        fs_out = vec4(vec3(occlusion), 1.0f);
-
-        if (SSAO.blur == 0) {
-            fs_out = texture(ssaoNoise, texCoord);
-        }
+        fs_out = vec4(occlusion, 0.0f, 0.0f, 1.0f);
     } else {
         fs_out = texture(screenTexture, texCoord);
     }
