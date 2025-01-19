@@ -5,7 +5,7 @@ layout (location = 0) out vec4 fs_out;
 
 layout (set = 0, binding = 0) uniform sampler2D screenTexture;
 
-const int kernelSize = 3;
+const int kernelSize = 5;
 
 //we simply apply a maxFilter to the texture, with a kernel of 5x5
 void main() {
