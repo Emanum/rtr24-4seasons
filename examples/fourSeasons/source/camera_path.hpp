@@ -12,7 +12,7 @@ public:
 		: mCam{ &cam } // Target camera
 		, mSpeed{ 1.0f } // How fast does it move
 		, mStartTime{avk::time().time_since_start()}
-		, mRecordingDensity(0.5) // Default recording density is 0.5 seconds
+		, mRecordingDensity(0.05f) // Default recording density is 0.05 seconds
 	{
 		std::vector<glm::vec3> positions = {};
 		std::vector<glm::vec3> rotations = {};

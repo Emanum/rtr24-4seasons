@@ -196,7 +196,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	void init_scene()
 	{
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/SimpleScene3.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/fullScene.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -1111,6 +1111,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto mainWnd = avk::context().main_window();
 		auto ifi = mainWnd->current_in_flight_index();
 
+		mQuakeCam.set_move_speed(1.25f);//4.5 is default;
 		update_uniform_buffers(ifi);
 		
 		// Get a command pool to allocate command buffers from:
