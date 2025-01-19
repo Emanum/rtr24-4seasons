@@ -58,7 +58,7 @@ Manuel Eiweck:
 * Depth of field effect
 
 Peter Kain:
-* Extend the rasterizer with a deferred shading pipeline + optimize/fix Vulkan calls
+* Extend the rasterizer + optimize/fix Vulkan calls
 * Extend camera path recording and playback
 * SSAO
 * Deferred Shading
@@ -71,10 +71,10 @@ We used the model loader template from the Auto-Vk-Toolkit and extended it with 
 ## Overview of the Render passes
 
 * Skybox
-* Rasterizer (Deferred Shading)
+* Rasterizer (GBuffer)
 * SSAO
 * Blur SSAO
-* Illimumination
+* Illumination (Deferred Shading)
 * Depth of Field - Mask (Near, Center, Far)
 * Depth of Field - Bleed Near Field (Max kernel filter)
 * Depth of Field - Center Field (could be skipped not used in the end only for debug purposes)
