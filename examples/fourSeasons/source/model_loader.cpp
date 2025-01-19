@@ -1639,8 +1639,8 @@ void load_start_options()
 {
 	LPCSTR ini = "./settings.ini";
 	startOptions options;
-	options.width = GetPrivateProfileIntA("window", "width", 1280, ini);
-	options.height = GetPrivateProfileIntA("window", "height", 720, ini);
+	options.width = GetPrivateProfileIntA("window", "width", 1920, ini);
+	options.height = GetPrivateProfileIntA("window", "height", 1080, ini);
 	// Buffer for the scene file
 	char sceneFileBuffer[256];
 	GetPrivateProfileStringA(
