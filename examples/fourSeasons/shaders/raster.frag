@@ -103,4 +103,5 @@ void main()
 	gAlbedo = vec4(color * diffuse, 1.0);
 	gPosition = vec4(pos, linearizeDepth(fragDepth));
 	gNormal = vec4(normalize(normal) * 0.5 + 0.5, 1.0);
+	gAlbedo = vec4(gPosition.xyz, 1.0);
 }

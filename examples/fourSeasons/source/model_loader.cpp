@@ -948,8 +948,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		// For Raster step
 		vp_matrices viewProjMat3{
-			projectionMatrix,
-			viewMatrix
+			viewMatrix,
+			projectionMatrix
 		};
 		auto emptyThree = mViewProjBuffer->fill(&viewProjMat3, 0);
 
