@@ -78,5 +78,8 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\raster.vert">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\ssao_blur.frag">
+      <Filter>shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>

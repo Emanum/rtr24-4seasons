@@ -58,6 +58,7 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\skybox.vert" />
     <None Include="..\..\..\examples\fourSeasons\shaders\ssao.frag" />
     <None Include="..\..\..\examples\fourSeasons\shaders\ssao.vert" />
+    <None Include="..\..\..\examples\fourSeasons\shaders\ssao_blur.frag" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
