@@ -1625,14 +1625,14 @@ void load_start_options()
 {
 	LPCSTR ini = "./settings.ini";
 	startOptions options;
-	options.width = GetPrivateProfileIntA("window", "width", 800, ini);
-	options.height = GetPrivateProfileIntA("window", "height", 600, ini);
+	options.width = GetPrivateProfileIntA("window", "width", 1280, ini);
+	options.height = GetPrivateProfileIntA("window", "height", 720, ini);
 	// Buffer for the scene file
 	char sceneFileBuffer[256];
 	GetPrivateProfileStringA(
 		"scene",          // Section name
 		"model",          // Key name
-		"defaultScene.fbx", // Default value
+		"fullScene.fbx", // Default value
 		sceneFileBuffer,  // Buffer to store the retrieved string
 		sizeof(sceneFileBuffer), // Buffer size
 		ini               // Path to the ini file
