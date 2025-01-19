@@ -60,6 +60,12 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\dofCenter.vert">
       <Filter>shaders</Filter>
     </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\dofBleedNearField.frag">
+      <Filter>shaders</Filter>
+    </None>
+    <None Include="..\..\..\examples\fourSeasons\shaders\dofBleedNearField.vert">
+      <Filter>shaders</Filter>
+    </None>
     <None Include="..\..\..\examples\fourSeasons\shaders\skybox.frag">
       <Filter>shaders</Filter>
     </None>

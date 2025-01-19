@@ -52,6 +52,8 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\dof3.vert" />
     <None Include="..\..\..\examples\fourSeasons\shaders\dofCenter.frag" />
     <None Include="..\..\..\examples\fourSeasons\shaders\dofCenter.vert" />
+    <None Include="..\..\..\examples\fourSeasons\shaders\dofBleedNearField.frag" />
+    <None Include="..\..\..\examples\fourSeasons\shaders\dofBleedNearField.vert" />
     <None Include="..\..\..\examples\fourSeasons\shaders\illum.frag" />
     <None Include="..\..\..\examples\fourSeasons\shaders\raster.frag" />
     <None Include="..\..\..\examples\fourSeasons\shaders\raster.vert" />
@@ -204,8 +206,7 @@
     <Link>
       <SubSystem>Console</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
-      <AdditionalOptions>
-      </AdditionalOptions>
+      <AdditionalOptions></AdditionalOptions>
     </Link>
     <CustomBuildStep>
       <Command>powershell.exe -ExecutionPolicy Bypass -File "$(ToolsBin)invoke_post_build_helper.ps1" -msbuild "$(MsBuildToolsPath)"  -configuration "$(Configuration)" -framework "$(FrameworkRoot)\"  -platform "$(Platform)" -vcxproj "$(ProjectPath)" -filters "$(ProjectPath).filters" -output "$(OutputPath)\" -executable "$(TargetPath)" -external "$(ExternalRoot)\"</Command>

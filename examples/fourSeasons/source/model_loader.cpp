@@ -508,6 +508,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto colorAttachmentNearDof = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto colorAttachmentDescriptionNearDof = avk::attachment::declare_for(colorAttachmentRaster.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
 
+		auto colorAttachmentNearBleedDof = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		auto colorAttachmentDescriptionNearBleedDof = avk::attachment::declare_for(colorAttachmentRaster.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
+		
 		auto colorAttachmentCenterDof = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto colorAttachmentDescriptionCenterDof = avk::attachment::declare_for(colorAttachmentRaster.as_reference(), avk::on_load::load.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(0), avk::on_store::store);
 		
@@ -552,6 +555,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		);
 		mImageSamplerDofNearColor = avk::context().create_image_sampler(mDofNearFieldFB->image_view_at(0), samplerLin);
 
+		mDofNearFieldBleedFB = avk::context().create_framebuffer(
+			{ colorAttachmentDescriptionNearBleedDof },
+			avk::make_vector(colorAttachmentNearBleedDof)
+		);
+		mImageSamplerDofNearBleedColor = avk::context().create_image_sampler(mDofNearFieldBleedFB->image_view_at(0), samplerLin);
+		
 		mDofCenterFieldFB = avk::context().create_framebuffer(
 			{ colorAttachmentDescriptionCenterDof },
 			avk::make_vector(colorAttachmentCenterDof)
@@ -598,19 +607,28 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		
 		mDoFKernelBufferStruct = { .gaussianKernel= init_gaussian_kernel(3), .bokehKernel= init_bokeh_kernel() };
 		//try zero initialization isntead
-		mDoFKernelBufferStruct = {.gaussianKernel = std::vector<glm::vec4>(49, glm::vec4(0)), .bokehKernel = std::vector<glm::vec4>(48, glm::vec4(0))};
-		//calculate the size of the buffer
-		size_t bufferSize = mDoFKernelBufferStruct.gaussianKernel.size() * sizeof(glm::vec4) + mDoFKernelBufferStruct.bokehKernel.size() * sizeof(glm::vec4);
-		mDoFKernelBuffer = avk::context().create_buffer(
-			avk::memory_usage::host_coherent, {},
-			avk::storage_buffer_meta::create_from_size(bufferSize)
+		// mDoFKernelBufferStruct = {.gaussianKernel = std::vector<glm::vec4>(49, glm::vec4(0)), .bokehKernel = std::vector<glm::vec4>(48, glm::vec4(0))};
+		mDoFKernelBufferGaussian = avk::context().create_buffer(
+			avk::memory_usage::device, {},
+			avk::storage_buffer_meta::create_from_data(mDoFKernelBufferStruct.gaussianKernel)
 		);
 		// Submit the Vertex Buffer fill command to the device:
 		auto fence = avk::context().record_and_submit_with_fence({
-			mDoFKernelBuffer->fill(&mDoFKernelBufferStruct, 0)
+			mDoFKernelBufferGaussian->fill(mDoFKernelBufferStruct.gaussianKernel.data(), 0)
 		}, *mQueue);
 		// Wait on the host until the device is done:
 		fence->wait_until_signalled();
+
+		mDoFKernelBufferBokeh = avk::context().create_buffer(
+			avk::memory_usage::device, {},
+			avk::storage_buffer_meta::create_from_data(mDoFKernelBufferStruct.bokehKernel)
+		);
+		// Submit the Vertex Buffer fill command to the device:
+		auto fence2 = avk::context().record_and_submit_with_fence({
+			mDoFKernelBufferBokeh->fill(mDoFKernelBufferStruct.bokehKernel.data(), 0)
+		}, *mQueue);
+		// Wait on the host until the device is done:
+		fence2->wait_until_signalled();
 		
 		
 		//Create Vertex Buffer for Screenspace Quad
@@ -622,11 +640,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::vertex_buffer_meta::create_from_data(mScreenspaceQuadVertexData)
 			);
 			// Submit the Vertex Buffer fill command to the device:
-			auto fence = avk::context().record_and_submit_with_fence({
+			auto fence3 = avk::context().record_and_submit_with_fence({
 				mVertexBufferScreenspace->fill(mScreenspaceQuadVertexData.data(), 0)
 			}, *mQueue);
 			// Wait on the host until the device is done:
-			fence->wait_until_signalled();
+			fence3->wait_until_signalled();
 
 			mIndexBufferScreenspace = avk::context().create_buffer(
 				avk::memory_usage::device, {},
@@ -796,6 +814,26 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(0, 2, mDoFBuffer)
 		);
 
+		mPipelineDofNearBleed = avk::context().create_graphics_pipeline_for(
+			// Specify which shaders the pipeline consists of:
+			avk::vertex_shader("shaders/dofBleedNearField.vert"),
+			avk::fragment_shader("shaders/dofBleedNearField.frag"),
+					
+			avk::from_buffer_binding(0) -> stream_per_vertex<glm::vec2>() -> to_location(0), // <-- corresponds to vertex shader's inPosition
+
+			// Some further settings:
+			avk::cfg::front_face::define_front_faces_to_be_clockwise(),
+			avk::cfg::viewport_depth_scissors_config::from_framebuffer(mDofNearFieldBleedFB.as_reference()),
+
+			// We'll render to the framebuffer
+			avk::context().create_renderpass(
+			{
+				colorAttachmentDescriptionRaster
+			}),
+
+			avk::descriptor_binding(0, 0, mImageSamplerDofNearColor->as_combined_image_sampler(avk::layout::color_attachment_optimal))
+		);
+
 		mPipelineDofFar = avk::context().create_graphics_pipeline_for(
 			// Specify which shaders the pipeline consists of:
 			avk::vertex_shader("shaders/dof2.vert"),
@@ -868,7 +906,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(0, 3, mImageSamplerDofFarColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
 			avk::descriptor_binding(0, 5, mDoFBuffer),
-			avk::descriptor_binding(1, 0, mDoFKernelBuffer)
+			avk::descriptor_binding(1, 0, mDoFKernelBufferGaussian),
+			avk::descriptor_binding(1, 1, mDoFKernelBufferBokeh)
+
 		);
 
 		
@@ -879,6 +919,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mPipelineSSAO.enable_shared_ownership(); // Make it usable with the updater
 		mPipelineDofFar.enable_shared_ownership(); // Make it usable with the updater
 		mPipelineDofNear.enable_shared_ownership(); // Make it usable with the updater
+		mPipelineDofNearBleed.enable_shared_ownership(); // Make it usable with the updater
 		mPipelineDofFinal.enable_shared_ownership(); // Make it usable with the updater
 		mPipelineSkybox.enable_shared_ownership(); // Make it usable with the updater
 		mRasterizePipeline.enable_shared_ownership(); // Make it usable with the updater
@@ -912,9 +953,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::shader_files_changed_event(mPipelineIllumination.as_reference()),
 			avk::shader_files_changed_event(mPipelineDofFar.as_reference()),
 			avk::shader_files_changed_event(mPipelineDofNear.as_reference()),
+			avk::shader_files_changed_event(mPipelineDofNearBleed.as_reference()),
 			avk::shader_files_changed_event(mPipelineDofCenter.as_reference()),
 			avk::shader_files_changed_event(mPipelineDofFinal.as_reference())
-		).update(mRasterizePipeline, mPipelineSkybox, mPipelineDofFinal, mPipelineDofNear, mPipelineDofCenter, mPipelineDofFar, mPipelineSSAO, mPipelineSSAOBlur, mPipelineIllumination);
+		).update(mRasterizePipeline, mPipelineSkybox, mPipelineDofFinal, mPipelineDofNear,mPipelineDofNearBleed, mPipelineDofCenter, mPipelineDofFar, mPipelineSSAO, mPipelineSSAOBlur, mPipelineIllumination);
 
 		
 		// Add the cameras to the composition (and let them handle updates)
@@ -1061,7 +1103,6 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		camData.position = camPosition;
 		auto camCmd = mCameraData->fill(&camData, 0);
 
-		auto emptyToo2 = mDoFKernelBuffer->fill(&mDoFKernelBufferStruct, 0);
 	}
 
 	void render() override
@@ -1075,7 +1116,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto& commandPool = avk::context().get_command_pool_for_single_use_command_buffers(*mQueue);
 		
 		// Create three command buffer:
-		auto cmdBfrs = commandPool->alloc_command_buffers(8u, vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
+		auto cmdBfrs = commandPool->alloc_command_buffers(9u, vk::CommandBufferUsageFlagBits::eOneTimeSubmit);
 
 		//Create semaphores 
 		auto rasterizerComplete = avk::context().create_semaphore();
@@ -1087,6 +1128,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto illumComplete3 = avk::context().create_semaphore();
 
 		auto dofNearComplete = avk::context().create_semaphore();
+		auto dofNearBleedComplete = avk::context().create_semaphore();
 		auto dofCenterComplete = avk::context().create_semaphore();
 		auto dofFarComplete = avk::context().create_semaphore();
 
@@ -1238,6 +1280,24 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		// Let the command buffer handle the semaphore lifetimes:
 		cmdBfrs[4]->handle_lifetime_of(std::move(illumComplete));
 
+		//3. Bleed Near Field for DoF
+		avk::context().record({
+			avk::command::render_pass(mPipelineDofNearBleed->renderpass_reference(), mDofNearFieldBleedFB.as_reference(), avk::command::gather(
+				avk::command::bind_pipeline(mPipelineDofNearBleed.as_reference()),
+				avk::command::bind_descriptors(mPipelineDofNearBleed->layout(), mDescriptorCache->get_or_create_descriptor_sets({
+					avk::descriptor_binding(0, 0, mImageSamplerDofNearColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+				})),
+				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
+			)),
+		})
+		.into_command_buffer(cmdBfrs[3])
+		.then_submit_to(*mQueue)
+		.waiting_for(dofNearComplete >> avk::stage::color_attachment_output)
+		.signaling_upon_completion(avk::stage::color_attachment_output >> dofNearBleedComplete)
+		.submit();
+		// Let the command buffer handle the semaphore lifetimes:
+		cmdBfrs[3]->handle_lifetime_of(std::move(dofNearComplete));
+
 		//3. Render Center Field for DoF
 		avk::context().record({
 			avk::command::render_pass(mPipelineDofCenter->renderpass_reference(), mDofCenterFieldFB.as_reference(), avk::command::gather(
@@ -1285,12 +1345,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::command::bind_pipeline(mPipelineDofFinal.as_reference()),
 				avk::command::bind_descriptors(mPipelineDofFinal->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 					avk::descriptor_binding(0, 0, mImageSamplerIlluminationFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 1, mImageSamplerDofNearColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 1, mImageSamplerDofNearBleedColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 2, mImageSamplerDofCenterColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 3, mImageSamplerDofFarColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 5, mDoFBuffer),
-					avk::descriptor_binding(1, 0, mDoFKernelBuffer)
+					avk::descriptor_binding(1, 0, mDoFKernelBufferGaussian),
+					avk::descriptor_binding(1, 1, mDoFKernelBufferBokeh)
 				})),
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			)),
@@ -1298,13 +1359,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		.into_command_buffer(cmdBfrs[7])
 		.then_submit_to(*mQueue)
 		.waiting_for(dofFarComplete >> avk::stage::color_attachment_output)
-		.waiting_for(dofNearComplete >> avk::stage::color_attachment_output)
+		.waiting_for(dofNearBleedComplete >> avk::stage::color_attachment_output)
 		.waiting_for(dofCenterComplete >> avk::stage::color_attachment_output)
 		.submit();
 		// Let the command buffer handle the semaphore lifetimes:
-		cmdBfrs[7]->handle_lifetime_of(std::move(dofFarComplete));
-		cmdBfrs[7]->handle_lifetime_of(std::move(dofNearComplete));
-		cmdBfrs[7]->handle_lifetime_of(std::move(dofCenterComplete));
+		cmdBfrs[6]->handle_lifetime_of(std::move(dofFarComplete));
+		cmdBfrs[6]->handle_lifetime_of(std::move(dofNearBleedComplete));
+		cmdBfrs[6]->handle_lifetime_of(std::move(dofCenterComplete));
 
 		
 		// Use a convenience function of avk::window to take care of the command buffers lifetimes:
@@ -1473,6 +1534,11 @@ private: // v== Member variables ==v
 	avk::framebuffer mDofNearFieldFB;//Dof1 renders into this
 	avk::image_sampler mImageSamplerDofNearColor;
 
+	//3.25 DoF 1.25 pass (bleeds nearField with a max filter)
+	avk::graphics_pipeline mPipelineDofNearBleed;//renders into mDofNearFieldFB
+	avk::framebuffer mDofNearFieldBleedFB;//Dof1 renders into this
+	avk::image_sampler mImageSamplerDofNearBleedColor;
+
 	//3.5 DoF 1.5 pass (renders center field into  mDofCenterFieldFB)
 	avk::graphics_pipeline mPipelineDofCenter;//renders into mDofCenterFieldFB
 	avk::framebuffer mDofCenterFieldFB;//Dof1 renders into this
@@ -1487,7 +1553,9 @@ private: // v== Member variables ==v
 	avk::graphics_pipeline mPipelineDofFinal;//renders directly to the screen
 	
 	avk::buffer mDoFBuffer;
-	avk::buffer mDoFKernelBuffer;
+	avk::buffer mDoFKernelBufferGaussian;//gaussian
+	avk::buffer mDoFKernelBufferBokeh;
+
 
 	//general screenspace quad
 	avk::buffer mVertexBufferScreenspace;
