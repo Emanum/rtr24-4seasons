@@ -989,6 +989,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				ImGui::Separator();
 				ImGui::Text("F: play automatic camera path");
 				ImGui::Text("R record new camera path");
+				ImGui::Text("State: %s", mCameraPathRecorder->is_recording() ? "recording" : "not recording");
 				ImGui::Separator();
 				bool quakeCamEnabled = mQuakeCam.is_enabled();
 				if (ImGui::Checkbox("Enable Quake Camera", &quakeCamEnabled)) {
@@ -1126,7 +1127,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto mainWnd = avk::context().main_window();
 		auto ifi = mainWnd->current_in_flight_index();
 
-		mQuakeCam.set_move_speed(1.25f);//4.5 is default;
+// 		, mRotationSpeed(0.001f)
+// , mMoveSpeed(4.5f) // 4.5 m/s
+// , mFastMultiplier(6.0f) // 27 m/s
+// , mSlowMultiplier(0.2f) // 0.9 m/s
+		mQuakeCam.set_move_speed(1.1f);
+		mQuakeCam.set_slow_multiplier(0.5f);
+		mQuakeCam.set_fast_multiplier(3.0f);
+		mQuakeCam.set_rotation_speed(0.0015f);
 		update_uniform_buffers(ifi);
 		
 		// Get a command pool to allocate command buffers from:

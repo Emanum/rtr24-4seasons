@@ -7,7 +7,7 @@ class camera_path_recorder
 {
 public:
 	camera_path_recorder(avk::quake_camera& cam,
-		float recording_density =  0.05f) // default recording density is 0.05 seconds
+		float recording_density =  0.5f) // default recording density is 0.05 seconds
 		: mCam{ &cam } // Target camera to track and record a path
 		, mStartTime{avk::time().time_since_start()} // Set in initialize()
 		, mLastRecordedTime{ 0.0f }
@@ -79,6 +79,11 @@ public:
 	{
 		std::thread t(&camera_path_recorder::_save_to_disk, this, path, std::move(mRecordingPathPositions), std::move(mRecordingPathRotations));
 		t.detach();
+	}
+
+	bool is_recording()
+	{
+		return mRecording;
 	}
 
 private:
