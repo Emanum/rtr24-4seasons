@@ -989,7 +989,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				ImGui::Separator();
 				ImGui::Text("F: play automatic camera path");
 				ImGui::Text("R record new camera path");
-				ImGui::Text("State: %s", mCameraPathRecorder->is_recording() ? "recording" : "not recording");
+				if (mCameraPathRecorder.has_value()) {
+					ImGui::Text("State: %s", mCameraPathRecorder->is_recording() ? "recording" : "not recording");
+				}
 				ImGui::Separator();
 				bool quakeCamEnabled = mQuakeCam.is_enabled();
 				if (ImGui::Checkbox("Enable Quake Camera", &quakeCamEnabled)) {
