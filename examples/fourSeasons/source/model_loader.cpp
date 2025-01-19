@@ -95,6 +95,10 @@ class model_loader_app : public avk::invokee
 		int mIllumination = 1;
 	};
 
+	struct CameraData {
+		glm::vec4 position;
+	};
+
 	avk::buffer mSSAOKernel;
 	avk::image_sampler mSSAONoiseTexture;
 
@@ -487,6 +491,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto positionAttachmentDescription = avk::attachment::declare_for(positionAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(1), avk::on_store::store);
 		auto normalsAttachmentRaster = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto normalsAttachmentDescription = avk::attachment::declare_for(normalsAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(2), avk::on_store::store);
+		auto positionWSAttachmentRaster = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR32G32B32A32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		auto positionWSAttachmentDescription = avk::attachment::declare_for(positionWSAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(3), avk::on_store::store);
 
 		//SSAO
 		auto colorAttachmentSSAO = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
@@ -511,15 +517,16 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 
 		mRasterizerFramebuffer = avk::context().create_framebuffer(
-			{ colorAttachmentDescriptionRaster, positionAttachmentDescription, normalsAttachmentDescription, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
-			avk::make_vector( colorAttachmentRaster, positionAttachmentRaster, normalsAttachmentRaster, depthAttachmentRaster )
+			{ colorAttachmentDescriptionRaster, positionAttachmentDescription, normalsAttachmentDescription, positionWSAttachmentDescription, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
+			avk::make_vector( colorAttachmentRaster, positionAttachmentRaster, normalsAttachmentRaster, positionWSAttachmentRaster, depthAttachmentRaster )
 		);
 		auto samplerLin = avk::context().create_sampler(avk::filter_mode::trilinear, avk::border_handling_mode::clamp_to_edge, 0);
 		auto samplerNea = avk::context().create_sampler(avk::filter_mode::nearest_neighbor, avk::border_handling_mode::clamp_to_edge, 0);
 		mImageSamplerRasterFBColor = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(0), samplerNea);
 		mImageSamplerRasterFBPosition = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(1), samplerNea);
 		mImageSamplerRasterFBNormals = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(2), samplerNea);
-		mImageSamplerRasterFBDepth = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(3), samplerNea);
+		mImageSamplerRasterFBPositionWS = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(3), samplerNea);
+		mImageSamplerRasterFBDepth = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(4), samplerNea);
 
 		mSSAOFramebuffer = avk::context().create_framebuffer(
 			{ colorAttachmentDescriptionSSAO }, 
@@ -567,6 +574,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mSSAOBuffer = avk::context().create_buffer(
 			avk::memory_usage::host_coherent, {},
 			avk::uniform_buffer_meta::create_from_data(SSAOData())
+		);
+
+		mCameraData = avk::context().create_buffer(
+			avk::memory_usage::host_coherent, {},
+			avk::uniform_buffer_meta::create_from_data(CameraData())
 		);
 
 		init_ssao_data();
@@ -644,6 +656,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				colorAttachmentDescriptionRaster,
 				positionAttachmentDescription,
 				normalsAttachmentDescription,
+				positionWSAttachmentDescription,
 				depthAttachmentDescription
 			}),
 			
@@ -673,6 +686,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				colorAttachmentDescriptionRaster,
 				positionAttachmentDescription,
 				normalsAttachmentDescription,
+				positionWSAttachmentDescription,
 				depthAttachmentDescription
 			}),
 				
@@ -750,10 +764,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				}),
 
 			avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 1, mImageSamplerRasterFBPosition->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 1, mImageSamplerRasterFBPositionWS->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 2, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 3, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 4, mSSAOBuffer)
+			avk::descriptor_binding(0, 4, mSSAOBuffer),
+			avk::descriptor_binding(0, 5, mCameraData)
 		);
 
 
@@ -1039,6 +1054,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		ssaoData.mIllumination = mIllumination;
 		auto ssaoCmd = mSSAOBuffer->fill(&ssaoData, 0);
 
+
+		glm::vec3 camTranslation = mQuakeCam.is_enabled() ? mQuakeCam.translation() : mOrbitCam.translation();
+		glm::vec4 camPosition = glm::vec4(camTranslation, 1.0);
+		CameraData camData;
+		camData.position = camPosition;
+		auto camCmd = mCameraData->fill(&camData, 0);
+
 		auto emptyToo2 = mDoFKernelBuffer->fill(&mDoFKernelBufferStruct, 0);
 	}
 
@@ -1177,10 +1199,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::command::bind_pipeline(mPipelineIllumination.as_reference()),
 				avk::command::bind_descriptors(mPipelineIllumination->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 					avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 1, mImageSamplerRasterFBPosition->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 1, mImageSamplerRasterFBPositionWS->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 2, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 3, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 4, mSSAOBuffer)
+					avk::descriptor_binding(0, 4, mSSAOBuffer),
+					avk::descriptor_binding(0, 5, mCameraData),
 				})),
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			))
@@ -1426,6 +1449,7 @@ private: // v== Member variables ==v
 	avk::image_sampler mImageSamplerRasterFBDepth;
 	avk::image_sampler mImageSamplerRasterFBPosition;
 	avk::image_sampler mImageSamplerRasterFBNormals;
+	avk::image_sampler mImageSamplerRasterFBPositionWS;
 
 	//2. SSAO 1. pass (create ssao effect)
 	avk::graphics_pipeline mPipelineSSAO;//renders into ssaoFramebuffer
@@ -1442,6 +1466,7 @@ private: // v== Member variables ==v
 	avk::graphics_pipeline mPipelineIllumination;
 	avk::framebuffer mIlluminationFramebuffer;
 	avk::image_sampler mImageSamplerIlluminationFBColor;
+	avk::buffer mCameraData;
 
 	//3. DoF 1. pass (renders near field into mDofNearFieldFB)
 	avk::graphics_pipeline mPipelineDofNear;//renders into mDofNearFieldFB
