@@ -40,7 +40,9 @@ There are two camera modes:
 To switch from circle Camera to First Person Camera click the checkbox in the menu.
 To switch back press ESC. (Don't press twice otherwise the app closes)
 
-* F... follow the prerecorded camera path
+* F... follow the prerecorded camera path / Stop Following
+* F1... toggle Depth of Field
+* F2... toggle SSAO
 * R... reset the camera path and record a new one
 * ESC... disable first person camera and show a mouse cursor
 * Other controls are shown in the menu and can be changed via the mouse
