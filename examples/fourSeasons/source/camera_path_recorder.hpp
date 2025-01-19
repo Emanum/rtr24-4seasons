@@ -60,8 +60,14 @@ public:
 				file.clear();
 				
 				for (size_t i = 0; i < mRecordingPathPositions->size(); ++i) {
-					file << mRecordingPathPositions->at(i).x << " " << mRecordingPathPositions->at(i).y << " " << mRecordingPathPositions->at(i).z << " ";
-					file << mRecordingPathRotations->at(i).x << " " << mRecordingPathRotations->at(i).y << " " << mRecordingPathRotations->at(i).z << std::endl;
+					float x = mRecordingPathPositions->at(i).x;
+					float y = mRecordingPathPositions->at(i).y;
+					float z = mRecordingPathPositions->at(i).z;
+					file  << std::fixed << std::setprecision(30) << x << " " << y << " " << z << " ";
+					float x1 = mRecordingPathRotations->at(i).x;
+					float y1 = mRecordingPathRotations->at(i).y;
+					float z1 = mRecordingPathRotations->at(i).z;
+					file  << std::fixed << std::setprecision(30) << x1 << " " << y1 << " " << z1 << std::endl;
 				}
 				file.close();
 			}
