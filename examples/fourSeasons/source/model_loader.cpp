@@ -12,6 +12,7 @@
 #include "vk_convenience_functions.hpp"
 #include "camera_path_recorder.hpp"
 #include "math_utils.hpp"
+#include <Windows.h>
 
 #include <random>
 
@@ -28,8 +29,18 @@ namespace g_ssao {
 	constexpr size_t noiseSize = 16;
 }
 
+
+struct startOptions
+{
+	int width;
+	int height;
+	std::string sceneFile;
+};
+static startOptions mStartOptions;
+
 class model_loader_app : public avk::invokee
 {
+	
 	
 	struct data_for_draw_call
 	{
@@ -196,7 +207,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	void init_scene()
 	{
 		// Load a model from file:
-		auto sponza = avk::model_t::load_from_file("assets/SimpleScene3.fbx", aiProcess_Triangulate | aiProcess_PreTransformVertices);
+		auto sponza = avk::model_t::load_from_file("assets/" + mStartOptions.sceneFile, aiProcess_Triangulate | aiProcess_PreTransformVertices);
 		// Get all the different materials of the model:
 		auto distinctMaterials = sponza->distinct_material_configs();
 
@@ -1601,14 +1612,48 @@ private: // v== Member variables ==v
 
 }; // model_loader_app
 
+
+
+//load settings from settings.ini
+void load_start_options()
+// 	[window]
+// width=1920
+// height=1080
+//
+// [scene]
+// model=fullScene.fbx
+{
+	LPCSTR ini = "./settings.ini";
+	startOptions options;
+	options.width = GetPrivateProfileIntA("window", "width", 800, ini);
+	options.height = GetPrivateProfileIntA("window", "height", 600, ini);
+	// Buffer for the scene file
+	char sceneFileBuffer[256];
+	GetPrivateProfileStringA(
+		"scene",          // Section name
+		"model",          // Key name
+		"defaultScene.fbx", // Default value
+		sceneFileBuffer,  // Buffer to store the retrieved string
+		sizeof(sceneFileBuffer), // Buffer size
+		ini               // Path to the ini file
+	);
+	options.sceneFile = sceneFileBuffer; // Assign retrieved string to the structure
+
+	// Debug output to verify the loaded values
+	std::cout << "Width: " << options.width << "\n";
+	std::cout << "Height: " << options.height << "\n";
+	std::cout << "Scene File: " << options.sceneFile << "\n";
+	mStartOptions = options;
+}
+
 int main() // <== Starting point ==
 {
+	load_start_options();
 	int result = EXIT_FAILURE;
 	try {
 		// Create a window and open it
 		auto mainWnd = avk::context().create_window("4 Seasons");
-
-		mainWnd->set_resolution({ 1920, 1080 });
+		mainWnd->set_resolution({ mStartOptions.width, mStartOptions.height });
 		mainWnd->enable_resizing(false);
 		mainWnd->set_additional_back_buffer_attachments({
 			avk::attachment::declare(vk::Format::eD32Sfloat, avk::on_load::clear.from_previous_layout(avk::layout::undefined), avk::usage::depth_stencil, avk::on_store::dont_care)
