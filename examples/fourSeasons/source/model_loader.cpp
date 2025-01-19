@@ -828,7 +828,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			// We'll render to the framebuffer
 			avk::context().create_renderpass(
 			{
-				colorAttachmentDescriptionRaster
+			colorAttachmentDescriptionNearBleedDof
 			}),
 
 			avk::descriptor_binding(0, 0, mImageSamplerDofNearColor->as_combined_image_sampler(avk::layout::color_attachment_optimal))
@@ -1260,7 +1260,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		cmdBfrs[3]->handle_lifetime_of(std::move(ssaoBComplete));
 
 
-		//3. Render Near Field for DoF
+		// Render Near Field for DoF
 		avk::context().record({
 			avk::command::render_pass(mPipelineDofNear->renderpass_reference(), mDofNearFieldFB.as_reference(), avk::command::gather(
 				avk::command::bind_pipeline(mPipelineDofNear.as_reference()),
@@ -1280,7 +1280,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		// Let the command buffer handle the semaphore lifetimes:
 		cmdBfrs[4]->handle_lifetime_of(std::move(illumComplete));
 
-		//3. Bleed Near Field for DoF
+		//Bleed Near Field for DoF
 		avk::context().record({
 			avk::command::render_pass(mPipelineDofNearBleed->renderpass_reference(), mDofNearFieldBleedFB.as_reference(), avk::command::gather(
 				avk::command::bind_pipeline(mPipelineDofNearBleed.as_reference()),
@@ -1290,13 +1290,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			)),
 		})
-		.into_command_buffer(cmdBfrs[3])
+		.into_command_buffer(cmdBfrs[5])
 		.then_submit_to(*mQueue)
 		.waiting_for(dofNearComplete >> avk::stage::color_attachment_output)
 		.signaling_upon_completion(avk::stage::color_attachment_output >> dofNearBleedComplete)
 		.submit();
 		// Let the command buffer handle the semaphore lifetimes:
-		cmdBfrs[3]->handle_lifetime_of(std::move(dofNearComplete));
+		cmdBfrs[5]->handle_lifetime_of(std::move(dofNearComplete));
 
 		//3. Render Center Field for DoF
 		avk::context().record({
@@ -1310,13 +1310,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			)),
 		})
-		.into_command_buffer(cmdBfrs[5])
+		.into_command_buffer(cmdBfrs[6])
 		.then_submit_to(*mQueue)
 		.waiting_for(illumComplete3 >> avk::stage::color_attachment_output)
 		.signaling_upon_completion(avk::stage::color_attachment_output >> dofCenterComplete)
 		.submit();
 		// Let the command buffer handle the semaphore lifetimes:
-		cmdBfrs[5]->handle_lifetime_of(std::move(illumComplete3));
+		cmdBfrs[6]->handle_lifetime_of(std::move(illumComplete3));
 
 
 		//4. Render Far Field for DoF
@@ -1331,13 +1331,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			)),
 		})
-		.into_command_buffer(cmdBfrs[6])
+		.into_command_buffer(cmdBfrs[7])
 		.then_submit_to(*mQueue)
 		.waiting_for(illumComplete2 >> avk::stage::color_attachment_output)
 		.signaling_upon_completion(avk::stage::color_attachment_output >> dofFarComplete)
 		.submit();
 		// Let the command buffer handle the semaphore lifetimes:
-		cmdBfrs[6]->handle_lifetime_of(std::move(illumComplete2));
+		cmdBfrs[7]->handle_lifetime_of(std::move(illumComplete2));
 		
 		//5. Render Final DoF
 		avk::context().record({
@@ -1356,16 +1356,16 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			)),
 		})
-		.into_command_buffer(cmdBfrs[7])
+		.into_command_buffer(cmdBfrs[8])
 		.then_submit_to(*mQueue)
 		.waiting_for(dofFarComplete >> avk::stage::color_attachment_output)
 		.waiting_for(dofNearBleedComplete >> avk::stage::color_attachment_output)
 		.waiting_for(dofCenterComplete >> avk::stage::color_attachment_output)
 		.submit();
 		// Let the command buffer handle the semaphore lifetimes:
-		cmdBfrs[6]->handle_lifetime_of(std::move(dofFarComplete));
-		cmdBfrs[6]->handle_lifetime_of(std::move(dofNearBleedComplete));
-		cmdBfrs[6]->handle_lifetime_of(std::move(dofCenterComplete));
+		cmdBfrs[8]->handle_lifetime_of(std::move(dofFarComplete));
+		cmdBfrs[8]->handle_lifetime_of(std::move(dofNearBleedComplete));
+		cmdBfrs[8]->handle_lifetime_of(std::move(dofCenterComplete));
 
 		
 		// Use a convenience function of avk::window to take care of the command buffers lifetimes:
@@ -1378,6 +1378,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[5]));
 		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[6]));
 		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[7]));
+		avk::context().main_window()->handle_lifetime(std::move(cmdBfrs[8]));
 
 	}
 
