@@ -3,7 +3,7 @@
 layout(location = 0) in vec2 texCoord;
 layout(location = 0) out vec4 fs_out;
 
-layout(constant_id = 0) const int NUM_SAMPLES = 64;
+layout(constant_id = 0) const int NUM_SAMPLES = 32;
 layout(constant_id = 1) const float RADIUS = 0.5;
 
 layout(set = 0, binding = 0) uniform sampler2D screenTexture;
@@ -17,6 +17,7 @@ layout(set = 0, binding = 5) uniform uniformSSAO
 {
     int enabled;
     int blur;
+    int illumination;
 } SSAO;
 
 layout(set = 0, binding = 6) uniform ssaoKernel {

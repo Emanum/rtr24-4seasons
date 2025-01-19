@@ -52,6 +52,7 @@
     <None Include="..\..\..\examples\fourSeasons\shaders\dof3.vert" />
     <None Include="..\..\..\examples\fourSeasons\shaders\dofCenter.frag" />
     <None Include="..\..\..\examples\fourSeasons\shaders\dofCenter.vert" />
+    <None Include="..\..\..\examples\fourSeasons\shaders\illum.frag" />
     <None Include="..\..\..\examples\fourSeasons\shaders\raster.frag" />
     <None Include="..\..\..\examples\fourSeasons\shaders\raster.vert" />
     <None Include="..\..\..\examples\fourSeasons\shaders\skybox.frag" />
