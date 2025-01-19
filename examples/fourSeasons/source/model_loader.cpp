@@ -75,7 +75,7 @@ class model_loader_app : public avk::invokee
 
 	//for DoF
 	struct DoFData {
-		int mEnabled = 0;
+		int mEnabled = 1;
 		int mMode;
 		float mFocus = 3.0f; //at what distance the focus is
 		float mFocusRange = 1.5f; //how far the focus reaches (in both directions), i.e. the range of sharpness
@@ -98,7 +98,7 @@ class model_loader_app : public avk::invokee
 
 	//for SSAO
 	struct SSAOData {
-		int mEnabled = 0;
+		int mEnabled = 1;
 		int mBlur = 1;
 		int mIllumination = 1;
 	};
@@ -144,10 +144,10 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mDoFSliderFocus = slider_container<float>{ "Focus", 0.8f, 0.0f, 1, [this](float val) { this->mDoFFocus = val; } };
 		mDoFSliderFocusRange = slider_container<float>{ "Range", 0.01f, 0.0f, 0.1, [this](float val) { this->mDoFFocusRange = val; } };
 		mDoFSliderDistanceOutOfFocus = slider_container<float>{ "Dist", 0.05f, 0.0f, 0.2, [this](float val) { this->mDoFDistanceOutOfFocus = val; } };
-		mDoFEnabledCheckbox = check_box_container{ "Enabled##1", false, [this](bool val) { this->mDoFEnabled = val; } };
+		mDoFEnabledCheckbox = check_box_container{ "Enabled##1", true, [this](bool val) { this->mDoFEnabled = val; } };
 		mDoFModeCombo = combo_box_container{ "Mode", { "blur", "near", "center", "far" }, 0, [this](std::string val) { this->mDoFMode = val; } };
 		//ssao
-		mSSAOEnabledCheckbox = check_box_container{ "Enabled##2", false, [&](bool val) { mSSAOEnabled = val; } };
+		mSSAOEnabledCheckbox = check_box_container{ "Enabled##2", true, [&](bool val) { mSSAOEnabled = val; } };
 		mSSAOBlurCheckbox = check_box_container{ "Blur", true, [&](bool val) { mSSAOBlur = val; } };
 		mIlluminationCheckbox = check_box_container{ "Illumination", true, [&](bool val) { mIllumination = val; } };
 	}
@@ -1602,11 +1602,11 @@ private: // v== Member variables ==v
 	float mDoFFocus = 0.8f;
 	float mDoFFocusRange = 0.1f;
 	float mDoFDistanceOutOfFocus = 0.1f;
-	int mDoFEnabled = 0;
+	int mDoFEnabled = 1;
 	std::string mDoFMode = "blur";
 
 	// SSAO data
-	int mSSAOEnabled = 0;
+	int mSSAOEnabled = 1;
 	int mSSAOBlur = 1;
 	int mIllumination = 1;
 
