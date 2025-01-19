@@ -1097,7 +1097,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 2, mImageSamplerRasterFBPosition->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 3, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 4, mSSAONoiseTexture->as_combined_image_sampler(avk::layout::undefined)),
+					avk::descriptor_binding(0, 4, mSSAONoiseTexture->as_combined_image_sampler(avk::layout::shader_read_only_optimal)),
 					avk::descriptor_binding(0, 5, mSSAOBuffer),
 					avk::descriptor_binding(0, 6, mSSAOKernel),
 					avk::descriptor_binding(0, 7, mViewProjBuffer)
