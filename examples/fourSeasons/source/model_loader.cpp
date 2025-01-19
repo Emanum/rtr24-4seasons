@@ -975,7 +975,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mQuakeCam.set_perspective_projection(glm::radians(30.0f), avk::context().main_window()->aspect_ratio(), CAM_NEAR, CAM_FAR);
 		avk::current_composition()->add_element(mOrbitCam);
 		avk::current_composition()->add_element(mQuakeCam);
-		mQuakeCam.disable();
+		mQuakeCam.enable();
 
 		auto imguiManager = avk::current_composition()->element_by_type<avk::imgui_manager>();
 		if(nullptr != imguiManager) {
@@ -1019,14 +1019,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					mOrbitCam.enable();
 				}
 				ImGui::Separator();
-				ImGui::Text("Depth of Field");
+				ImGui::Text("Depth of Field (F1)");
 				mDoFEnabledCheckbox->invokeImGui();
 				mDoFModeCombo->invokeImGui();
 				mDoFSliderFocus->invokeImGui();
 				mDoFSliderFocusRange->invokeImGui();
 				mDoFSliderDistanceOutOfFocus->invokeImGui();
 				ImGui::Separator();
-				ImGui::Text("Screen-Space Ambient Occlusion (SSAO)");
+				ImGui::Text("Screen-Space Ambient Occlusion (SSAO) (F2)");
 				mSSAOEnabledCheckbox->invokeImGui();
 				mSSAOBlurCheckbox->invokeImGui();
 				mIlluminationCheckbox->invokeImGui();
@@ -1410,6 +1410,17 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 	}
 
+	void toggle_auto_camera_path()
+	{
+		mQuakeCam.enable();
+		if (mCameraPath.has_value()) {
+			mCameraPath.reset();
+		}
+		else {
+			mCameraPath.emplace(mQuakeCam, "assets/camera_path.txt");
+		}
+	}
+
 	void update() override
 	{
 		static int counter = 0;
@@ -1420,6 +1431,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			auto int_sec = std::chrono::duration_cast<std::chrono::seconds>(time_span).count();
 			auto fp_ms = std::chrono::duration<double, std::milli>(time_span).count();
 			printf("Time from init to fourth frame: %d min, %lld sec %lf ms\n", int_min, int_sec - static_cast<decltype(int_sec)>(int_min) * 60, fp_ms - 1000.0 * int_sec);
+			toggle_auto_camera_path();
 		}
 
 		if (avk::input().key_pressed(avk::key_code::c)) {
@@ -1471,16 +1483,17 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		// Start following the camera path:
 		if(avk::input().key_pressed(avk::key_code::f)) {
-			mQuakeCam.enable();
-			if (mCameraPath.has_value()) {
-				mCameraPath.reset();
-			}
-			else {
-				mCameraPath.emplace(mQuakeCam, "assets/camera_path.txt");
-			}
+			toggle_auto_camera_path();
 		}
 		if (mCameraPath.has_value()) {
 			mCameraPath->update();
+		}
+
+		if (avk::input().key_pressed(avk::key_code::f1)) {
+			mDoFEnabled = !mDoFEnabled;
+		}
+		if (avk::input().key_pressed(avk::key_code::f2)) {
+			mSSAOEnabled = !mSSAOEnabled;
 		}
 		
 
@@ -1529,6 +1542,7 @@ private: // v== Member variables ==v
 
 	avk::orbit_camera mOrbitCam;
 	avk::quake_camera mQuakeCam;
+	bool stoppedCamera = false;
 	std::optional<camera_path> mCameraPath;
 	std::optional<camera_path_recorder> mCameraPathRecorder;
 
