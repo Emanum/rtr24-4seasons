@@ -343,7 +343,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			1, avk::memory_usage::device, avk::image_usage::general_color_attachment
 		);
 		auto noiseBuffer = avk::context().create_buffer(
-			avk::memory_usage::device, {},
+			avk::memory_usage::host_coherent, vk::BufferUsageFlagBits::eTransferSrc,
 			avk::generic_buffer_meta::create_from_data(noise)
 		);
 		avk::context().record_and_submit_with_fence(
@@ -700,14 +700,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
 			avk::descriptor_binding(0, 2, mImageSamplerRasterFBPosition->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 3, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 4, mSSAONoiseTexture->as_combined_image_sampler(avk::layout::undefined)),
+			avk::descriptor_binding(0, 4, mSSAONoiseTexture->as_combined_image_sampler(avk::layout::shader_read_only_optimal)),
 			avk::descriptor_binding(0, 5, mSSAOBuffer),
 			avk::descriptor_binding(0, 6, mSSAOKernel),
 			avk::descriptor_binding(0, 7, mViewProjBuffer)
 		);
 
 		mPipelineSSAOBlur = avk::context().create_graphics_pipeline_for(
-			avk::vertex_shader("shader/ssao.vert"),
+			avk::vertex_shader("shaders/ssao.vert"),
 			avk::fragment_shader("shaders/ssao_blur.frag"),
 
 			avk::from_buffer_binding(0) -> stream_per_vertex<glm::vec2>() -> to_location(0),
@@ -720,7 +720,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				colorAttachmentDescriptionSSAOBlur
 			}),
 
-			avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal))
+			avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 1, mSSAOBuffer)
 		);
 
 		mPipelineDofNear = avk::context().create_graphics_pipeline_for(
@@ -741,7 +742,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			}),
 					
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
-			avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
 			avk::descriptor_binding(0, 2, mDoFBuffer)
 		);
@@ -764,7 +765,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			}),
 							
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
-			avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
 			avk::descriptor_binding(0, 2, mDoFBuffer)
 		);
@@ -787,7 +788,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			}),
 							
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
-			avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_attachment_optimal)),
 			avk::descriptor_binding(0, 2, mDoFBuffer)
 		);
@@ -812,7 +813,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			}, avk::context().main_window()->renderpass_reference().subpass_dependencies()),
 			
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
-			avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 1, mImageSamplerDofNearColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 2, mImageSamplerDofCenterColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 3, mImageSamplerDofFarColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
@@ -1117,7 +1118,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::command::render_pass(mPipelineSSAOBlur->renderpass_reference(), mSSAOBlurFramebuffer.as_reference(), avk::command::gather(
 				avk::command::bind_pipeline(mPipelineSSAOBlur.as_reference()),
 				avk::command::bind_descriptors(mPipelineSSAOBlur->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-					avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::attachment_optimal))
+					avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 1, mSSAOBuffer)
 				})),
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			))
@@ -1129,6 +1131,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		.signaling_upon_completion(avk::stage::color_attachment_output >> ssaoBComplete2)
 		.signaling_upon_completion(avk::stage::color_attachment_output >> ssaoBComplete3)
 		.submit();
+		cmdBfrs[2]->handle_lifetime_of(std::move(ssaoComplete));
 
 
 		//3. Render Near Field for DoF
@@ -1136,7 +1139,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::command::render_pass(mPipelineDofNear->renderpass_reference(), mDofNearFieldFB.as_reference(), avk::command::gather(
 				avk::command::bind_pipeline(mPipelineDofNear.as_reference()),
 				avk::command::bind_descriptors(mPipelineDofNear->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-					avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 2, mDoFBuffer)
 				})),
@@ -1149,14 +1152,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		.signaling_upon_completion(avk::stage::color_attachment_output >> dofNearComplete)
 		.submit();
 		// Let the command buffer handle the semaphore lifetimes:
-		cmdBfrs[2]->handle_lifetime_of(std::move(ssaoBComplete));
+		cmdBfrs[3]->handle_lifetime_of(std::move(ssaoBComplete));
 
 		//3. Render Center Field for DoF
 		avk::context().record({
 			avk::command::render_pass(mPipelineDofCenter->renderpass_reference(), mDofCenterFieldFB.as_reference(), avk::command::gather(
 				avk::command::bind_pipeline(mPipelineDofCenter.as_reference()),
 				avk::command::bind_descriptors(mPipelineDofCenter->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-					avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 2, mDoFBuffer)
 				})),
@@ -1169,7 +1172,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		.signaling_upon_completion(avk::stage::color_attachment_output >> dofCenterComplete)
 		.submit();
 		// Let the command buffer handle the semaphore lifetimes:
-		cmdBfrs[3]->handle_lifetime_of(std::move(ssaoBComplete3));
+		cmdBfrs[4]->handle_lifetime_of(std::move(ssaoBComplete3));
 
 
 		//4. Render Far Field for DoF
@@ -1177,7 +1180,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::command::render_pass(mPipelineDofFar->renderpass_reference(), mDofFarFieldFB.as_reference(), avk::command::gather(
 				avk::command::bind_pipeline(mPipelineDofFar.as_reference()),
 				avk::command::bind_descriptors(mPipelineDofFar->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-					avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 1, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 2, mDoFBuffer)
 				})),
@@ -1190,14 +1193,14 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		.signaling_upon_completion(avk::stage::color_attachment_output >> dofFarComplete)
 		.submit();
 		// Let the command buffer handle the semaphore lifetimes:
-		cmdBfrs[4]->handle_lifetime_of(std::move(ssaoBComplete2));
+		cmdBfrs[5]->handle_lifetime_of(std::move(ssaoBComplete2));
 		
 		//5. Render Final DoF
 		avk::context().record({
 			avk::command::render_pass(mPipelineDofFinal->renderpass_reference(), avk::context().main_window()->current_backbuffer_reference(), avk::command::gather(
 				avk::command::bind_pipeline(mPipelineDofFinal.as_reference()),
 				avk::command::bind_descriptors(mPipelineDofFinal->layout(), mDescriptorCache->get_or_create_descriptor_sets({
-					avk::descriptor_binding(0, 0, mImageSamplerSSAOFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 1, mImageSamplerDofNearColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 2, mImageSamplerDofCenterColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 3, mImageSamplerDofFarColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
