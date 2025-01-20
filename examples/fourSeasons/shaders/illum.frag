@@ -4,10 +4,10 @@ layout(location = 0) in vec2 texCoord;
 
 layout(location = 0) out vec4 fs_out;
 
-layout(constant_id = 0) const int NUM_LIGHTS = 10;
+layout(constant_id = 0) const int NUM_LIGHTS = 1000;
 layout(constant_id = 1) const float CONSTANT = 1.0;
-layout(constant_id = 2) const float LINEAR = 0.22;
-layout(constant_id = 3) const float QUADRATIC = 0.2;
+layout(constant_id = 2) const float LINEAR = 0.7;
+layout(constant_id = 3) const float QUADRATIC = 1.8;
 
 layout(set = 0, binding = 0) uniform sampler2D screenTexture;
 layout(set = 0, binding = 1) uniform sampler2D gPositionWS;
@@ -50,17 +50,19 @@ void main() {
         vec3 viewDir = normalize(camera.position - fragPos);
         vec3 sunDir = vec3(0.5, 0.7, 1.0);
 
-        vec3 light = max(dot(normal, sunDir), 0.0) * diffuse * lighting.sunColor;
+        float ambient = 0.1 * ao;
+        //vec3 light = max(dot(normal, sunDir), 0.0) * diffuse * lighting.sunColor;
+        vec3 light = vec3(0.0);
         for (int i = 0; i < NUM_LIGHTS; i++) {
             vec3 lightDir = lightPositions.data[i] - fragPos;
             vec3 lightDirN = normalize(lightDir);
             float d = length(lightDir);
             float att = 1.0 / (CONSTANT + LINEAR * d + QUADRATIC * d * d);
-            vec3 diffuseC = max(dot(normal, lightDirN), 0.0) * diffuse * vec3(1.0, 0.7, 0.0) * att;
+            vec3 diffuseC = max(dot(normal, lightDirN), 0.0) * diffuse * vec3(1.0) * att;
             light += diffuseC;
         }
 
-        vec4 erg = vec4(light * ao, 1.0);
+        vec4 erg = vec4(light * ambient, 1.0);
         //skybox has high depth value; if depth is high, use skybox color (diffuse) instead of erg)
         if(depth.r < 0.9999) {
             fs_out = erg;

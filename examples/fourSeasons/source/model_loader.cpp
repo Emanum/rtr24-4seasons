@@ -24,7 +24,7 @@ constexpr float CAM_FAR = 1000.0f;
 namespace global {
 	constexpr size_t kernelSize = 64;
 	constexpr size_t noiseSize = 16;
-	constexpr size_t numPointLights = 10;
+	constexpr size_t numPointLights = 1000;
 }
 
 
