@@ -21,9 +21,10 @@
 constexpr float CAM_NEAR = 0.3f;
 constexpr float CAM_FAR = 1000.0f;
 
-namespace g_ssao {
+namespace global {
 	constexpr size_t kernelSize = 64;
 	constexpr size_t noiseSize = 16;
+	constexpr size_t numPointLights = 10;
 }
 
 
@@ -108,8 +109,10 @@ class model_loader_app : public avk::invokee
 	};
 
 	struct LightingData {
-		glm::vec4 sunColor;
+		glm::vec3 sunColor;
 	};
+
+	avk::buffer mLightPositions;
 
 	avk::buffer mSSAOKernel;
 	avk::image_sampler mSSAONoiseTexture;
@@ -318,12 +321,12 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 	{
 		std::vector<glm::vec4> kernel;
 		std::vector<glm::vec4> noise;
-		kernel.reserve(g_ssao::kernelSize);
-		noise.reserve(g_ssao::noiseSize);
+		kernel.reserve(global::kernelSize);
+		noise.reserve(global::noiseSize);
 		std::uniform_real_distribution<float> range(0.0, 1.0);
 		std::mt19937 randomEngine;
 		// Generate samples in a hemisphere
-		for (size_t i = 0; i < g_ssao::kernelSize; i++) {
+		for (size_t i = 0; i < global::kernelSize; i++) {
 			glm::vec3 sample(
 				range(randomEngine) * 2.0 - 1.0,
 				range(randomEngine) * 2.0 - 1.0,
@@ -333,7 +336,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			sample *= range(randomEngine);
 
 			// Scale so samples are distributed closer to the origin of the hemisphere
-			float scale = (float)i / g_ssao::kernelSize;
+			float scale = (float)i / global::kernelSize;
 			// lerp
 			scale = 0.1 + scale*scale * (1.0 - 0.1);
 
@@ -347,7 +350,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mSSAOKernel->fill(kernel.data(), 0);
 
 		// Create a rotation vectors for the noise texture
-		for (size_t i = 0; i < g_ssao::noiseSize; i++) {
+		for (size_t i = 0; i < global::noiseSize; i++) {
 			noise.push_back(glm::vec4(
 				range(randomEngine) * 2.0 - 1.0,
 				range(randomEngine) * 2.0 - 1.0,
@@ -507,6 +510,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto normalsAttachmentDescription = avk::attachment::declare_for(normalsAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(2), avk::on_store::store);
 		auto positionWSAttachmentRaster = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR32G32B32A32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
 		auto positionWSAttachmentDescription = avk::attachment::declare_for(positionWSAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(3), avk::on_store::store);
+		auto normalsWSAttachmentRaster = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR32G32B32A32Sfloat, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
+		auto normalsWSAttachmentDescription = avk::attachment::declare_for(normalsWSAttachmentRaster.as_reference(), avk::on_load::clear.from_previous_layout(avk::layout::color_attachment_optimal), avk::usage::color(4), avk::on_store::store);
 
 		//SSAO
 		auto colorAttachmentSSAO = avk::context().create_image_view(avk::context().create_image(r.x, r.y, vk::Format::eR8G8B8A8Unorm, 1, avk::memory_usage::device, avk::image_usage::general_color_attachment));
@@ -534,8 +539,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 
 		mRasterizerFramebuffer = avk::context().create_framebuffer(
-			{ colorAttachmentDescriptionRaster, positionAttachmentDescription, normalsAttachmentDescription, positionWSAttachmentDescription, depthAttachmentDescription }, // Attachment declarations can just be copied => use initializer_list.
-			avk::make_vector( colorAttachmentRaster, positionAttachmentRaster, normalsAttachmentRaster, positionWSAttachmentRaster, depthAttachmentRaster )
+			{ colorAttachmentDescriptionRaster, positionAttachmentDescription, normalsAttachmentDescription, positionWSAttachmentDescription, normalsWSAttachmentDescription, depthAttachmentDescription },
+			avk::make_vector( colorAttachmentRaster, positionAttachmentRaster, normalsAttachmentRaster, positionWSAttachmentRaster, normalsWSAttachmentRaster, depthAttachmentRaster )
 		);
 		auto samplerLin = avk::context().create_sampler(avk::filter_mode::trilinear, avk::border_handling_mode::clamp_to_edge, 0);
 		auto samplerNea = avk::context().create_sampler(avk::filter_mode::nearest_neighbor, avk::border_handling_mode::clamp_to_edge, 0);
@@ -543,7 +548,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mImageSamplerRasterFBPosition = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(1), samplerNea);
 		mImageSamplerRasterFBNormals = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(2), samplerNea);
 		mImageSamplerRasterFBPositionWS = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(3), samplerNea);
-		mImageSamplerRasterFBDepth = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(4), samplerNea);
+		mImageSamplerRasterFBNormalsWS = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(4), samplerNea);
+		mImageSamplerRasterFBDepth = avk::context().create_image_sampler(mRasterizerFramebuffer->image_view_at(5), samplerNea);
 
 		mSSAOFramebuffer = avk::context().create_framebuffer(
 			{ colorAttachmentDescriptionSSAO }, 
@@ -610,6 +616,24 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		);
 
 		init_ssao_data();
+
+		std::uniform_real_distribution<double> rangeXZ(0, 10.0);
+		std::uniform_real_distribution<double> rangeY(2.0, 10.0);
+		std::mt19937 randomEngine;
+		std::vector<glm::vec3> lightPositions;
+		lightPositions.reserve(global::numPointLights);
+		for (size_t i = 0; i < global::numPointLights; i++) {
+			lightPositions.push_back(glm::vec3(rangeXZ(randomEngine), 10.0, rangeXZ(randomEngine)));
+		}
+
+		mLightPositions = avk::context().create_buffer(
+			avk::memory_usage::host_coherent, {},
+			avk::uniform_buffer_meta::create_from_data(lightPositions)
+		);
+		avk::context().record_and_submit_with_fence({
+			mLightPositions->fill(lightPositions.data(), 0)
+		}, *mQueue)->wait_until_signalled();
+
 
 		// A buffer to hold all the material data:
 		// mMaterialBuffer = avk::context().create_buffer(
@@ -694,6 +718,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				positionAttachmentDescription,
 				normalsAttachmentDescription,
 				positionWSAttachmentDescription,
+				normalsWSAttachmentDescription,
 				depthAttachmentDescription
 			}),
 			
@@ -724,6 +749,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				positionAttachmentDescription,
 				normalsAttachmentDescription,
 				positionWSAttachmentDescription,
+				normalsWSAttachmentDescription,
 				depthAttachmentDescription
 			}),
 				
@@ -800,12 +826,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 			avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 1, mImageSamplerRasterFBPositionWS->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
-			avk::descriptor_binding(0, 2, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
+			avk::descriptor_binding(0, 2, mImageSamplerRasterFBNormalsWS->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 3, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_read_only_optimal)),
 			avk::descriptor_binding(0, 5, mSSAOBuffer),
 			avk::descriptor_binding(0, 6, mCameraData),
-			avk::descriptor_binding(0, 7, mLightingData)
+			avk::descriptor_binding(0, 7, mLightingData),
+			avk::descriptor_binding(0, 8, mLightPositions)
 		);
 
 
@@ -1136,7 +1163,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		fence2->wait_until_signalled();
 
 		LightingData lightData;
-		lightData.sunColor = mDay == 1 ? glm::vec4(1.0) : glm::vec4(0.3);
+		lightData.sunColor = mDay == 1 ? glm::vec3(1.0) : glm::vec3(0.1);
 		mLightingData->fill(&lightData, 0);
 	}
 
@@ -1282,12 +1309,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				avk::command::bind_descriptors(mPipelineIllumination->layout(), mDescriptorCache->get_or_create_descriptor_sets({
 					avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 1, mImageSamplerRasterFBPositionWS->as_combined_image_sampler(avk::layout::attachment_optimal)),
-					avk::descriptor_binding(0, 2, mImageSamplerRasterFBNormals->as_combined_image_sampler(avk::layout::attachment_optimal)),
+					avk::descriptor_binding(0, 2, mImageSamplerRasterFBNormalsWS->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 3, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 5, mSSAOBuffer),
 					avk::descriptor_binding(0, 6, mCameraData),
 					avk::descriptor_binding(0, 7, mLightingData),
+					avk::descriptor_binding(0, 8, mLightPositions)
 				})),
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			))
@@ -1568,6 +1596,7 @@ private: // v== Member variables ==v
 	avk::image_sampler mImageSamplerRasterFBPosition;
 	avk::image_sampler mImageSamplerRasterFBNormals;
 	avk::image_sampler mImageSamplerRasterFBPositionWS;
+	avk::image_sampler mImageSamplerRasterFBNormalsWS;
 
 	//2. SSAO 1. pass (create ssao effect)
 	avk::graphics_pipeline mPipelineSSAO;//renders into ssaoFramebuffer
@@ -1652,7 +1681,7 @@ private: // v== Member variables ==v
 	int mIllumination = 1;
 
 	// Lighting data
-	int mDay = 1;
+	int mDay = 0;
 
 
 	const float mScaleSkybox = 100.f;

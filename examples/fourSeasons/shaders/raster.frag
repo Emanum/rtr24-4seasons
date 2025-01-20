@@ -75,6 +75,7 @@ layout (location = 0) out vec4 gAlbedo;
 layout (location = 1) out vec4 gPosition;
 layout (location = 2) out vec4 gNormal;
 layout (location = 3) out vec4 gPositionWS;
+layout (location = 4) out vec4 gNormalWS;
 
 
 float near = 0.3f;  
@@ -104,5 +105,6 @@ void main()
 	gAlbedo = vec4(color * diffuse, 1.0);
 	gPosition = vec4(pos, linearizeDepth(fragDepth));
 	gPositionWS = vec4(positionWS, 1.0);
-	gNormal = vec4(normalize(normal) * 0.5 + 0.5, 1.0);
+	gNormal = vec4(normalize(normal), 1.0);
+	gNormalWS = vec4(normalize(normalWS), 1.0);
 }
