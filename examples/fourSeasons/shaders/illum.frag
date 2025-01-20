@@ -21,6 +21,10 @@ layout(set = 0, binding = 6) uniform Camera {
     vec3 position;
 } camera;
 
+layout(set = 0, binding = 7) uniform Lighting {
+    vec4 sunColor;
+} lighting;
+
 void main() {
     if (SSAO.illumination == 1) {
         vec3 fragPos = texture(gPositionWS, texCoord).rgb;
@@ -36,10 +40,9 @@ void main() {
 
         vec3 viewDir = normalize(-fragPos);
 
-        const vec3 lightColor = vec3(1.0);
-        vec3 lightDir = vec3(0.5, 0.7, 1.0);
+        vec3 sunDir = vec3(0.5, 0.7, 1.0);
 
-        vec3 diffuseC = max(dot(normal, lightDir), 0.0) * diffuse * lightColor;
+        vec3 diffuseC = max(dot(normal, sunDir), 0.0) * diffuse * lighting.sunColor.rgb;
         vec4 erg = vec4(diffuseC * ao, 1.0);
         //skybox has high depth value; if depth is high, use skybox color (diffuse) instead of erg)
         if(depth.r < 0.9999) {

@@ -107,6 +107,10 @@ class model_loader_app : public avk::invokee
 		glm::vec4 position;
 	};
 
+	struct LightingData {
+		glm::vec4 sunColor;
+	};
+
 	avk::buffer mSSAOKernel;
 	avk::image_sampler mSSAONoiseTexture;
 
@@ -150,6 +154,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mSSAOEnabledCheckbox = check_box_container{ "Enabled##2", true, [&](bool val) { mSSAOEnabled = val; } };
 		mSSAOBlurCheckbox = check_box_container{ "Blur", true, [&](bool val) { mSSAOBlur = val; } };
 		mIlluminationCheckbox = check_box_container{ "Illumination", true, [&](bool val) { mIllumination = val; } };
+
+		mDayCheckbox = check_box_container{ "Day", true, [&](bool val) { mDay = val; } };
 	}
 
 	void init_skybox()
@@ -598,6 +604,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::uniform_buffer_meta::create_from_data(CameraData())
 		);
 
+		mLightingData = avk::context().create_buffer(
+			avk::memory_usage::host_coherent, {},
+			avk::uniform_buffer_meta::create_from_data(LightingData())
+		);
+
 		init_ssao_data();
 
 		// A buffer to hold all the material data:
@@ -742,9 +753,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 			// We'll render to the framebuffer
 			avk::context().create_renderpass(
-			{
-				colorAttachmentDescriptionSSAO
-			}),
+				{ colorAttachmentDescriptionSSAO }
+			),
 			
 			// we bind the image (in which we copy the result of the previous pipeline) to the fragment shader
 			avk::descriptor_binding(0, 0, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
@@ -785,9 +795,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::cfg::viewport_depth_scissors_config::from_framebuffer(mIlluminationFramebuffer.as_reference()),
 
 			avk::context().create_renderpass(
-				{
-					colorAttachmentDescriptionIllumination
-				}),
+				{ colorAttachmentDescriptionIllumination }
+			),
 
 			avk::descriptor_binding(0, 0, mImageSamplerSSAOBlurFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 1, mImageSamplerRasterFBPositionWS->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
@@ -795,7 +804,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(0, 3, mImageSamplerRasterFBColor->as_combined_image_sampler(avk::layout::color_attachment_optimal)),
 			avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::depth_stencil_read_only_optimal)),
 			avk::descriptor_binding(0, 5, mSSAOBuffer),
-			avk::descriptor_binding(0, 6, mCameraData)
+			avk::descriptor_binding(0, 6, mCameraData),
+			avk::descriptor_binding(0, 7, mLightingData)
 		);
 
 
@@ -1031,6 +1041,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				mSSAOBlurCheckbox->invokeImGui();
 				mIlluminationCheckbox->invokeImGui();
 				ImGui::Separator();
+				ImGui::Text("Lighting");
+				mDayCheckbox->invokeImGui();
+				ImGui::Separator();
 				
 				ImGui::DragFloat3("Scale", glm::value_ptr(mScale), 0.005f, 0.01f, 10.0f);
 				ImGui::Checkbox("Enable/Disable invokee", &isEnabled);
@@ -1122,6 +1135,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		// Wait on the host until the device is done:
 		fence2->wait_until_signalled();
 
+		LightingData lightData;
+		lightData.sunColor = mDay == 1 ? glm::vec4(1.0) : glm::vec4(0.3);
+		mLightingData->fill(&lightData, 0);
 	}
 
 	void render() override
@@ -1129,10 +1145,6 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		auto mainWnd = avk::context().main_window();
 		auto ifi = mainWnd->current_in_flight_index();
 
-// 		, mRotationSpeed(0.001f)
-// , mMoveSpeed(4.5f) // 4.5 m/s
-// , mFastMultiplier(6.0f) // 27 m/s
-// , mSlowMultiplier(0.2f) // 0.9 m/s
 		mQuakeCam.set_move_speed(1.1f);
 		mQuakeCam.set_slow_multiplier(0.5f);
 		mQuakeCam.set_fast_multiplier(3.0f);
@@ -1219,6 +1231,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		.signaling_upon_completion(avk::stage::color_attachment_output >> rasterizerComplete)
 		.submit();
 
+
 		//2. Render SSAO
 		avk::context().record({
 			avk::command::render_pass(mPipelineSSAO->renderpass_reference(), mSSAOFramebuffer.as_reference(), avk::command::gather(
@@ -1274,6 +1287,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					avk::descriptor_binding(0, 4, mImageSamplerRasterFBDepth->as_combined_image_sampler(avk::layout::attachment_optimal)),
 					avk::descriptor_binding(0, 5, mSSAOBuffer),
 					avk::descriptor_binding(0, 6, mCameraData),
+					avk::descriptor_binding(0, 7, mLightingData),
 				})),
 				avk::command::draw_indexed(mIndexBufferScreenspace.as_reference(), mVertexBufferScreenspace.as_reference())
 			))
@@ -1571,6 +1585,7 @@ private: // v== Member variables ==v
 	avk::framebuffer mIlluminationFramebuffer;
 	avk::image_sampler mImageSamplerIlluminationFBColor;
 	avk::buffer mCameraData;
+	avk::buffer mLightingData;
 
 	//3. DoF 1. pass (renders near field into mDofNearFieldFB)
 	avk::graphics_pipeline mPipelineDofNear;//renders into mDofNearFieldFB
@@ -1622,6 +1637,8 @@ private: // v== Member variables ==v
 	std::optional<check_box_container> mSSAOBlurCheckbox;
 	std::optional<check_box_container> mIlluminationCheckbox;
 
+	std::optional<check_box_container> mDayCheckbox;
+
 	//depth of field data
 	float mDoFFocus = 0.8f;
 	float mDoFFocusRange = 0.1f;
@@ -1633,6 +1650,9 @@ private: // v== Member variables ==v
 	int mSSAOEnabled = 1;
 	int mSSAOBlur = 1;
 	int mIllumination = 1;
+
+	// Lighting data
+	int mDay = 1;
 
 
 	const float mScaleSkybox = 100.f;
