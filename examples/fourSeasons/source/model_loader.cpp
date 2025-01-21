@@ -110,6 +110,7 @@ class model_loader_app : public avk::invokee
 
 	struct LightingData {
 		glm::vec3 sunColor;
+		int deferred;
 	};
 
 	avk::buffer mLightPositions;
@@ -159,6 +160,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 		mIlluminationCheckbox = check_box_container{ "Illumination", true, [&](bool val) { mIllumination = val; } };
 
 		mDayCheckbox = check_box_container{ "Day", true, [&](bool val) { mDay = val; } };
+		mDeferredCheckbox = check_box_container{ "Deferred Shading", true, [&](bool val) { mDeferred = val; } };
 	}
 
 	void init_skybox()
@@ -617,13 +619,13 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		init_ssao_data();
 
-		std::uniform_real_distribution<double> rangeXZ(0, 10.0);
-		std::uniform_real_distribution<double> rangeY(2.0, 10.0);
+		std::uniform_real_distribution<double> rangeXZ(-10.0, 10.0);
+		std::uniform_real_distribution<double> rangeY(10.0, 20.0);
 		std::mt19937 randomEngine;
 		std::vector<glm::vec3> lightPositions;
 		lightPositions.reserve(global::numPointLights);
 		for (size_t i = 0; i < global::numPointLights; i++) {
-			lightPositions.push_back(glm::vec3(rangeXZ(randomEngine), 10.0, rangeXZ(randomEngine)));
+			lightPositions.push_back(glm::vec3(rangeXZ(randomEngine), rangeY(randomEngine), rangeXZ(randomEngine)));
 		}
 
 		mLightPositions = avk::context().create_buffer(
@@ -760,7 +762,9 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 			avk::descriptor_binding(0, 0, avk::as_combined_image_samplers(mImageSamplers, avk::layout::shader_read_only_optimal)),
 			avk::descriptor_binding(0, 1, mViewProjBuffers[0]),
 			avk::descriptor_binding(0, 2, mViewProjBuffer), //For view/projection matrices
-			avk::descriptor_binding(1, 0, mMaterialBuffer)
+			avk::descriptor_binding(1, 0, mMaterialBuffer),
+			avk::descriptor_binding(2, 0, mLightingData),
+			avk::descriptor_binding(2, 1, mLightPositions)
 		);
 
 		//Pipeline for Screenspace Effects (DoF) 
@@ -1070,6 +1074,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				ImGui::Separator();
 				ImGui::Text("Lighting");
 				mDayCheckbox->invokeImGui();
+				mDeferredCheckbox->invokeImGui();
 				ImGui::Separator();
 				
 				ImGui::DragFloat3("Scale", glm::value_ptr(mScale), 0.005f, 0.01f, 10.0f);
@@ -1164,6 +1169,7 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 
 		LightingData lightData;
 		lightData.sunColor = mDay == 1 ? glm::vec3(1.0) : glm::vec3(0.1);
+		lightData.deferred = mDeferred;
 		mLightingData->fill(&lightData, 0);
 	}
 
@@ -1222,6 +1228,8 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 					avk::descriptor_binding(0, 1, mViewProjBuffers[ifi]),
 					avk::descriptor_binding(0, 2, mViewProjBuffer),
 					avk::descriptor_binding(1, 0, mMaterialBuffer),
+					avk::descriptor_binding(2, 0, mLightingData),
+					avk::descriptor_binding(2, 1, mLightPositions)
 				})),
 
 				// Draw all the draw calls:
@@ -1667,6 +1675,7 @@ private: // v== Member variables ==v
 	std::optional<check_box_container> mIlluminationCheckbox;
 
 	std::optional<check_box_container> mDayCheckbox;
+	std::optional<check_box_container> mDeferredCheckbox;
 
 	//depth of field data
 	float mDoFFocus = 0.8f;
@@ -1682,6 +1691,7 @@ private: // v== Member variables ==v
 
 	// Lighting data
 	int mDay = 0;
+	int mDeferred = 1;
 
 
 	const float mScaleSkybox = 100.f;

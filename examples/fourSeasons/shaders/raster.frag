@@ -78,6 +78,21 @@ layout (location = 3) out vec4 gPositionWS;
 layout (location = 4) out vec4 gNormalWS;
 
 
+
+layout(constant_id = 0) const int NUM_LIGHTS = 1000;
+layout(constant_id = 1) const float LINEAR = 0.5;
+layout(constant_id = 2) const float QUADRATIC = 0.2;
+
+layout(set = 2, binding = 0) uniform Lighting {
+    vec3 sunColor;
+    int deferred;
+} lighting;
+
+layout(set = 2, binding = 1) uniform LightPositions {
+    vec3 data[NUM_LIGHTS];
+} lightPositions;
+
+
 float near = 0.3f;  
 float far = 1000.0f;
 
@@ -94,15 +109,29 @@ void main()
 	int diffuseTexIndex = matSsbo.materials[matIndex].mDiffuseTexIndex;
     vec3 color = texture(textures[diffuseTexIndex], texCoord).rgb;
 	vec3 diffuse = matSsbo.materials[matIndex].mDiffuseReflectivity.rgb;
+
+	vec3 albedo = color * diffuse;
 	
-	/*
-	float ambient = 0.1;
-	vec3 toLight = normalize(vec3(1.0, 1.0, 0.5));
-	vec3 illum = vec3(ambient) + diffuse * max(0.0, dot(normalize(normalWS), toLight));
-	color *= illum;
-	*/
+	if (lighting.deferred == 0) {
+		vec3 sunDir = vec3(0.5, 0.7, 1.0);
+		//vec3 light = max(dot(normalize(normalWS), sunDir), 0.0) * albedo * lighting.sunColor;
+		vec3 light = vec3(0.0);
+
+		float ambient = 0.1 / NUM_LIGHTS;
+		for (int i = 0; i < NUM_LIGHTS; i++) {
+			vec3 lightDir = lightPositions.data[i] - positionWS;
+            vec3 lightDirN = normalize(lightDir);
+            float d = length(lightDir);
+            float att = 1.0 / (1.0 + LINEAR * d + QUADRATIC * d * d);
+			vec3 diffuseC = max(0.0, dot(normalize(normalWS), lightDirN)) * albedo * att;// * vec3(1.0, 0.7, 0.0);
+			vec3 ambientC = vec3(ambient) * att;
+			light += diffuseC * 0.1 + ambientC;
+		}
+
+		albedo = light;
+	}
 	
-	gAlbedo = vec4(color * diffuse, 1.0);
+	gAlbedo = vec4(albedo, 1.0);
 	gPosition = vec4(pos, linearizeDepth(fragDepth));
 	gPositionWS = vec4(positionWS, 1.0);
 	gNormal = vec4(normalize(normal), 1.0);
