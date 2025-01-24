@@ -29,6 +29,7 @@ namespace g_ssao {
 
 struct startOptions
 {
+	int fullScreen;
 	int width;
 	int height;
 	std::string sceneFile;
@@ -1653,6 +1654,7 @@ void load_start_options()
 {
 	LPCSTR ini = "./settings.ini";
 	startOptions options;
+	options.fullScreen = GetPrivateProfileIntA("window", "fullScreen", 0, ini);
 	options.width = GetPrivateProfileIntA("window", "width", 1920, ini);
 	options.height = GetPrivateProfileIntA("window", "height", 1080, ini);
 	// Buffer for the scene file
@@ -1668,6 +1670,7 @@ void load_start_options()
 	options.sceneFile = sceneFileBuffer; // Assign retrieved string to the structure
 
 	// Debug output to verify the loaded values
+	std::cout << "Full Screen: " << options.fullScreen << "\n";
 	std::cout << "Width: " << options.width << "\n";
 	std::cout << "Height: " << options.height << "\n";
 	std::cout << "Scene File: " << options.sceneFile << "\n";
@@ -1689,6 +1692,35 @@ int main() // <== Starting point ==
 		mainWnd->set_presentaton_mode(avk::presentation_mode::mailbox);
 		mainWnd->set_number_of_concurrent_frames(3u);
 		mainWnd->open();
+
+		if (mStartOptions.fullScreen == 1)
+		{
+			auto monitor = avk::monitor_handle::primary_monitor();
+			const GLFWvidmode* mode = glfwGetVideoMode(monitor.mHandle);
+			//set the window to fullscreen
+			auto width = mode->width;
+			auto height = mode->height;
+			mainWnd->set_resolution({ width, height });
+
+			//exclusive fullscreen is kinda shit so we avoid it by placing the window directly in the center and
+			//therefore avoiding that the window borders from the operating system are present
+			//mainWnd->switch_to_fullscreen_mode(monitor);  
+			
+			int monitorX, monitorY;
+			glfwGetMonitorPos(monitor.mHandle, &monitorX, &monitorY);
+
+			auto window_handle = mainWnd->handle();
+			//cast to window handle
+			if (window_handle.has_value())
+			{
+				//idea from https://vallentin.dev/blog/post/glfw-center-window
+				glfwSetWindowPos(
+				   window_handle.value().mHandle,
+				   monitorX + (mode->width - width) / 2,
+				   monitorY + (mode->height - height) / 2
+				   );
+			}
+		}
 
 		auto& singleQueue = avk::context().create_queue({}, avk::queue_selection_preference::versatile_queue, mainWnd);
 		mainWnd->set_queue_family_ownership(singleQueue.family_index());
