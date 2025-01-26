@@ -1693,7 +1693,7 @@ int main() // <== Starting point ==
 		mainWnd->set_number_of_concurrent_frames(3u);
 		mainWnd->open();
 
-		if (mStartOptions.fullScreen == 1)
+		if (mStartOptions.fullScreen == 1 || mStartOptions.fullScreen == 2)
 		{
 			auto monitor = avk::monitor_handle::primary_monitor();
 			const GLFWvidmode* mode = glfwGetVideoMode(monitor.mHandle);
@@ -1702,23 +1702,28 @@ int main() // <== Starting point ==
 			auto height = mode->height;
 			mainWnd->set_resolution({ width, height });
 
-			//exclusive fullscreen is kinda shit so we avoid it by placing the window directly in the center and
-			//therefore avoiding that the window borders from the operating system are present
-			//mainWnd->switch_to_fullscreen_mode(monitor);  
-			
-			int monitorX, monitorY;
-			glfwGetMonitorPos(monitor.mHandle, &monitorX, &monitorY);
 
-			auto window_handle = mainWnd->handle();
-			//cast to window handle
-			if (window_handle.has_value())
+			if (mStartOptions.fullScreen == 2)
 			{
-				//idea from https://vallentin.dev/blog/post/glfw-center-window
-				glfwSetWindowPos(
-				   window_handle.value().mHandle,
-				   monitorX + (mode->width - width) / 2,
-				   monitorY + (mode->height - height) / 2
-				   );
+				mainWnd->switch_to_fullscreen_mode(monitor);  
+			}else
+			{
+				//exclusive fullscreen is kinda shit so we avoid it by placing the window directly in the center and
+				//therefore avoiding that the window borders from the operating system are present
+				int monitorX, monitorY;
+				glfwGetMonitorPos(monitor.mHandle, &monitorX, &monitorY);
+
+				auto window_handle = mainWnd->handle();
+				//cast to window handle
+				if (window_handle.has_value())
+				{
+					//idea from https://vallentin.dev/blog/post/glfw-center-window
+					glfwSetWindowPos(
+					   window_handle.value().mHandle,
+					   monitorX + (mode->width - width) / 2,
+					   monitorY + (mode->height - height) / 2
+					   );
+				}
 			}
 		}
 
