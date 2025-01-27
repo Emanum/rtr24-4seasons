@@ -93,9 +93,11 @@ Like this:
 [window]
 width=1920
 height=1080
+fullScreen=0
 [scene]
 model=fullScene.fbx
 ```
+fullScreen: 0-> windowed; 1->borderlessFullscreen; 2->exclusiveFullscreen
 
 The assets are not on Github due to size constraints. You can download them from here:
 https://1drv.ms/f/s!AvyVguN0Z2p8nIEhZrysOSzuLdBEzQ?e=X3ISYj
