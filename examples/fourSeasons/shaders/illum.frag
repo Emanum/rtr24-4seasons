@@ -6,7 +6,7 @@ layout(location = 0) out vec4 fs_out;
 
 layout(set = 0, binding = 0) uniform sampler2D screenTexture;
 layout(set = 0, binding = 1) uniform sampler2D gPositionWS;
-layout(set = 0, binding = 2) uniform sampler2D gNormal;
+layout(set = 0, binding = 2) uniform sampler2D gNormalWS;
 layout(set = 0, binding = 3) uniform sampler2D gAlbedo;
 layout(set = 0, binding = 4) uniform sampler2D depthTexture;
 
@@ -24,7 +24,7 @@ layout(set = 0, binding = 6) uniform Camera {
 void main() {
     if (SSAO.illumination == 1) {
         vec3 fragPos = texture(gPositionWS, texCoord).rgb;
-        vec3 normal = texture(gNormal, texCoord).rgb * 2.0 - 1.0;
+        vec3 normal = texture(gNormalWS, texCoord).rgb * 2.0 - 1.0;
         vec3 diffuse = texture(gAlbedo, texCoord).rgb;
         float ao = texture(screenTexture, texCoord).r;
         

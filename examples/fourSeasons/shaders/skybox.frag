@@ -9,6 +9,7 @@ layout (location = 0) out vec4 outFragColor;
 layout (location = 1) out vec4 outPos;
 layout (location = 2) out vec4 outNormal;
 layout (location = 3) out vec4 outPosWS;
+layout (location = 4) out vec4 outNormalWS;
 
 void main() 
 {
@@ -16,4 +17,5 @@ void main()
 	outPos = vec4(1.0);
 	outNormal = vec4(1.0);
 	outPosWS = vec4(1.0);
+	outNormalWS = vec4(1.0);
 }
