@@ -15,6 +15,7 @@
 #include <Windows.h>
 
 #include <random>
+#include <fstream>
 
 #include "auto_vk_toolkit.hpp"
 
@@ -25,6 +26,8 @@ namespace global {
 	constexpr size_t kernelSize = 64;
 	constexpr size_t noiseSize = 16;
 	constexpr size_t numPointLights = 1000;
+	std::ofstream fps;
+	float dt;
 }
 
 
@@ -1026,6 +1029,11 @@ public: // v== avk::invokee overrides which will be invoked by the framework ==v
 				ImGui::SetWindowPos(ImVec2(1.0f, 1.0f), ImGuiCond_FirstUseEver);
 				ImGui::Text("%.3f ms/frame", 1000.0f / ImGui::GetIO().Framerate);
 				ImGui::Text("%.1f FPS", ImGui::GetIO().Framerate);
+				global::dt += ImGui::GetIO().DeltaTime;
+				if (global::dt > 0.5f) {
+					global::fps << std::roundf(ImGui::GetIO().Framerate) << '\n';
+					global::dt = 0.0f;
+				}
 
 				ImGui::Separator();
 				ImGui::Text("F: play automatic camera path");
@@ -1736,6 +1744,7 @@ void load_start_options()
 int main() // <== Starting point ==
 {
 	load_start_options();
+	global::fps.open("results.txt");
 	int result = EXIT_FAILURE;
 	try {
 		// Create a window and open it
@@ -1811,5 +1820,6 @@ int main() // <== Starting point ==
 	}
 	catch (avk::logic_error&) {}
 	catch (avk::runtime_error&) {}
+	global::fps.close();
 	return result;
 }
